@@ -1,21 +1,25 @@
 import { clsx } from "clsx";
 
-export type Breakpoints = "sm" | "md" | "lg" | "xl";
+export type DefaultBreakpoints = "sm" | "md" | "lg" | "xl";
+export type Breakpoints = DefaultBreakpoints;
 
-export type BreakpointsMap<V> = {
+export type BreakpointsMap<V, B extends string = DefaultBreakpoints> = {
 	initial: V;
 } & Partial<{
-	[breakpoint in Breakpoints]: V;
+	[breakpoint in B]: V;
 }>;
 
-export type ResponsiveValue<T> = T | BreakpointsMap<T>;
+export type ResponsiveValue<T, B extends string = DefaultBreakpoints> =
+	| T
+	| BreakpointsMap<T, B>;
 
-const isSingularValue = <A>(value: ResponsiveValue<A>): value is A =>
-	!isBreakpointsMap(value);
+const isSingularValue = <A, B extends string>(
+	value: ResponsiveValue<A, B>,
+): value is A => !isBreakpointsMap(value);
 
-const isBreakpointsMap = <A>(
-	value: ResponsiveValue<A>,
-): value is BreakpointsMap<A> =>
+const isBreakpointsMap = <A, B extends string>(
+	value: ResponsiveValue<A, B>,
+): value is BreakpointsMap<A, B> =>
 	typeof value === "object" && value != null && !Array.isArray(value);
 
 /**
@@ -23,9 +27,10 @@ const isBreakpointsMap = <A>(
  *
  * @template V The type of the original value
  * @template T The type of the mapped value
- * @param {ResponsiveValue<V>} value - The original ResponsiveValue to be mapped
+ * @template B The type of breakpoints
+ * @param {ResponsiveValue<V, B>} value - The original ResponsiveValue to be mapped
  * @param {function(V): T} mapper - A function that maps a ResponsiveValue to a new ResponsiveValue
- * @returns {ResponsiveValue<T>} A new ResponsiveValue with the mapped values
+ * @returns {ResponsiveValue<T, B>} A new ResponsiveValue with the mapped values
  *
  *
  * @example
@@ -49,10 +54,10 @@ const isBreakpointsMap = <A>(
  *	sm: 'md',
  * }
  */
-export const mapResponsiveValue = <V, T>(
-	value: ResponsiveValue<V>,
+export const mapResponsiveValue = <V, T, B extends string = DefaultBreakpoints>(
+	value: ResponsiveValue<V, B>,
 	mapper: (value: V) => T,
-): ResponsiveValue<T> =>
+): ResponsiveValue<T, B> =>
 	isSingularValue(value)
 		? mapper(value)
 		: (Object.fromEntries(
@@ -60,7 +65,11 @@ export const mapResponsiveValue = <V, T>(
 					breakpoint,
 					mapper(value),
 				]),
-			) as BreakpointsMap<T>);
+			) as BreakpointsMap<T, B>);
+
+/**
+ * Start of rcv and types
+ */
 
 type VariantValue = Record<string, string>;
 type VariantConfig = Record<string, VariantValue>;
@@ -68,28 +77,30 @@ type VariantConfig = Record<string, VariantValue>;
 type StringBoolean = "true" | "false";
 type BooleanVariant = Partial<Record<StringBoolean, string>>;
 
-type VariantPropValue<T> = T extends BooleanVariant
-	? ResponsiveValue<boolean> | undefined
+type VariantPropValue<T, B extends string> = T extends BooleanVariant
+	? ResponsiveValue<boolean, B> | undefined
 	: T extends Record<string, unknown>
-		? ResponsiveValue<keyof T>
+		? ResponsiveValue<keyof T, B>
 		: never;
 
-type VariantProps<T extends VariantConfig> = {
-	[K in keyof T]: VariantPropValue<T[K]>;
+type VariantProps<T extends VariantConfig, B extends string> = {
+	[K in keyof T]: VariantPropValue<T[K], B>;
 } & {
 	className?: string;
 };
 
-type ResponsiveClassesConfig<T extends VariantConfig> = {
+type ResponsiveClassesConfig<T extends VariantConfig, B extends string> = {
 	base: string;
 	variants?: T;
-	compoundVariants?: Partial<VariantProps<T>>[];
+	compoundVariants?: Partial<VariantProps<T, B>>[];
+	onComplete?: (classes: string) => void;
 };
 
 /**
  * Creates a function that generates classes based on variant configurations and responsive props
  *
  * @template T - Type extending VariantConfig (Record of variant names to their possible values and corresponding classes)
+ * @template B - The breakpoints type
  *
  * @param config - Configuration object for variants
  * @param config.base - Base classes that are always applied
@@ -98,6 +109,7 @@ type ResponsiveClassesConfig<T extends VariantConfig> = {
  *                         or an object with true/false keys for boolean variants
  * @param config.compoundVariants - Optional array of compound variants that apply additional classes
  *                                 when multiple variants have specific values
+ * @param config.onComplete - Optional callback function that receives the generated classes
  *
  * @returns A function that accepts variant props and returns classes with twMerge
  *
@@ -125,14 +137,15 @@ type ResponsiveClassesConfig<T extends VariantConfig> = {
  * getButtonVariants({ intent: { initial: "primary", md: "secondary" } })
  */
 export const rcv =
-	<T extends VariantConfig>({
+	<T extends VariantConfig, B extends string = DefaultBreakpoints>({
 		base,
 		variants,
 		compoundVariants,
-	}: ResponsiveClassesConfig<T>) =>
-	({ className, ...props }: VariantProps<T>) => {
+		onComplete,
+	}: ResponsiveClassesConfig<T, B>) =>
+	({ className, ...props }: VariantProps<T, B>) => {
 		const responsiveClasses = Object.entries(props)
-			.map(([key, propValue]: [keyof T, VariantPropValue<T[keyof T]>]) => {
+			.map(([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
 				const variant = variants?.[key];
 				const value =
 					typeof propValue === "boolean" ? String(propValue) : propValue;
@@ -148,7 +161,7 @@ export const rcv =
 				}
 
 				// Handle responsive values
-				return Object.entries(value as Partial<BreakpointsMap<T>>)
+				return Object.entries(value as Partial<BreakpointsMap<T, B>>)
 					.map(([breakpoint, value]) => {
 						// If the breakpoint is initial, return the variant value without breakpoint prefix
 						if (breakpoint === "initial") {
@@ -179,5 +192,39 @@ export const rcv =
 			})
 			.filter(Boolean);
 
-		return clsx(base, responsiveClasses, compoundClasses, className);
+		const classes = clsx(base, responsiveClasses, compoundClasses, className);
+		return onComplete ? onComplete(classes) : classes;
 	};
+
+/**
+ * Creates a custom rcv function with custom breakpoints and an optional onComplete callback
+ *
+ * @template B - The custom breakpoints type
+ * @param breakpoints - Array of custom breakpoint names
+ * @param onComplete - Optional callback function that receives the generated classes
+ * @returns A function that creates rcv with custom breakpoints
+ *
+ * @example
+ * const customRcv = createRcv(['mobile', 'tablet', 'desktop']);
+ *
+ * const getButtonVariants = customRcv({
+ *   base: "px-4 py-2 rounded",
+ *   variants: {
+ *     intent: {
+ *       primary: "bg-blue-500 text-white",
+ *       secondary: "bg-gray-200 text-gray-800"
+ *     }
+ *   }
+ * });
+ *
+ * // Usage with custom breakpoints:
+ * getButtonVariants({ intent: { initial: "primary", mobile: "secondary", desktop: "primary" } })
+ */
+
+export const createRcv = <B extends string>(
+	_breakpoints: readonly B[],
+	onComplete?: (classes: string) => void,
+) => {
+	return <T extends VariantConfig>(config: ResponsiveClassesConfig<T, B>) =>
+		rcv<T, B>({ ...config, onComplete });
+};
