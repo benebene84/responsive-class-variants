@@ -1,0 +1,42 @@
+{
+	"compilerOptions": {
+		/* Base Options: */
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"target": "es2022",
+		"resolveJsonModule": true,
+		"moduleDetection": "force",
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true,
+		"moduleResolution": "bundler",
+		"baseUrl": ".",
+		"jsx": "react-jsx",
+
+		/* Strictness */
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+
+		/* If transpiling with TypeScript: */
+		"module": "ES2020",
+		"outDir": "dist",
+		"sourceMap": true,
+		"sourceRoot": "/",
+		"inlineSources": true,
+
+		/* AND if you're building for a library: */
+		"declaration": true,
+
+		/* If your code runs in the DOM: */
+		"lib": ["es2022", "dom", "dom.iterable"],
+
+		"paths": {
+			"@components/*": ["./src/components/*"],
+			"@utilities/*": ["./src/utilities/*"],
+			"@storybook/*": ["./stories/*"]
+		}
+	},
+
+	"include": ["index.ts", "vitest.setup.ts"],
+	"exclude": ["dist"]
+}
