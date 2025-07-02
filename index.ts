@@ -93,7 +93,7 @@ type ResponsiveClassesConfig<T extends VariantConfig, B extends string> = {
 	base: string;
 	variants?: T;
 	compoundVariants?: Partial<VariantProps<T, B>>[];
-	onComplete?: (classes: string) => void;
+	onComplete?: (classes: string) => string;
 };
 
 /**
@@ -109,7 +109,7 @@ type ResponsiveClassesConfig<T extends VariantConfig, B extends string> = {
  *                         or an object with true/false keys for boolean variants
  * @param config.compoundVariants - Optional array of compound variants that apply additional classes
  *                                 when multiple variants have specific values
- * @param config.onComplete - Optional callback function that receives the generated classes
+ * @param config.onComplete - Optional callback function that receives the generated classes and returns the final classes
  *
  * @returns A function that accepts variant props and returns classes with twMerge
  *
@@ -200,8 +200,8 @@ export const rcv =
  * Creates a custom rcv function with custom breakpoints and an optional onComplete callback
  *
  * @template B - The custom breakpoints type
- * @param breakpoints - Array of custom breakpoint names
- * @param onComplete - Optional callback function that receives the generated classes
+ * @param breakpoints - Optional array of custom breakpoint names
+ * @param onComplete - Optional callback function that receives the generated classes and returns the final classes
  * @returns A function that creates rcv with custom breakpoints
  *
  * @example
@@ -222,8 +222,8 @@ export const rcv =
  */
 
 export const createRcv = <B extends string>(
-	_breakpoints: readonly B[],
-	onComplete?: (classes: string) => void,
+	_breakpoints?: readonly B[],
+	onComplete?: (classes: string) => string,
 ) => {
 	return <T extends VariantConfig>(config: ResponsiveClassesConfig<T, B>) =>
 		rcv<T, B>({ ...config, onComplete });

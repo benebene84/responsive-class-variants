@@ -178,9 +178,9 @@ describe("createRcv", () => {
 	});
 
 	it("should call onComplete callback with the generated classes", () => {
-		const onComplete = (classes: string) =>
-			classes.split(" ").reverse().join(" ");
-		const defaultRcv = createRcv(["sm", "md", "lg", "xl"] as const, onComplete);
+		const defaultRcv = createRcv(["sm", "md", "lg", "xl"] as const, (classes) =>
+			classes.split(" ").reverse().join(" "),
+		);
 		const getButtonVariants = defaultRcv({
 			base: "px-4 py-2 rounded",
 			variants: {
