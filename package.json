@@ -1,12 +1,23 @@
 {
 	"name": "responsive-class-variants",
-	"version": "1.0.0",
+	"version": "0.1.0",
 	"description": "rcv helps you create responsive class variants",
 	"main": "dist/index.js",
 	"type": "module",
 	"types": "dist/index.d.ts",
 	"files": [
 		"dist"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/benebene84/responsive-class-variants"
+	},
+	"keywords": [
+		"responsive",
+		"class",
+		"variants",
+		"tailwind",
+		"tailwindcss"
 	],
 	"scripts": {
 		"build": "tsc",
