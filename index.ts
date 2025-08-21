@@ -71,11 +71,13 @@ export const mapResponsiveValue = <V, T, B extends string = DefaultBreakpoints>(
  * Start of rcv and types
  */
 
-type VariantValue = Record<string, string>;
+type VariantValue = Record<string, string | Record<string, string>>;
 type VariantConfig = Record<string, VariantValue>;
 
 type StringBoolean = "true" | "false";
-type BooleanVariant = Partial<Record<StringBoolean, string>>;
+type BooleanVariant = Partial<
+	Record<StringBoolean, string | Record<string, string>>
+>;
 
 type VariantPropValue<T, B extends string> = T extends BooleanVariant
 	? ResponsiveValue<boolean, B> | undefined
@@ -84,66 +86,218 @@ type VariantPropValue<T, B extends string> = T extends BooleanVariant
 		: never;
 
 type VariantProps<T extends VariantConfig, B extends string> = {
-	[K in keyof T]: VariantPropValue<T[K], B>;
+	[K in keyof T]?: VariantPropValue<T[K], B>;
 } & {
 	className?: string;
 };
 
-type ResponsiveClassesConfig<T extends VariantConfig, B extends string> = {
+// Slot configuration types
+type SlotConfig = string;
+
+type SlotsConfig<S extends string> = Record<S, SlotConfig>;
+
+type CompoundVariantWithSlots<
+	T extends VariantConfig,
+	S extends string,
+	B extends string,
+> = Partial<VariantProps<T, B>> & {
+	class?: Partial<Record<S, string>>;
+	className?: string;
+};
+
+type ResponsiveClassesConfig<T extends VariantConfig, B extends string> =
+	| {
+			base: string;
+			variants?: T;
+			compoundVariants?: Partial<VariantProps<T, B>>[];
+			onComplete?: (classes: string) => string;
+	  }
+	| {
+			slots: SlotsConfig<string>;
+			variants?: T;
+			compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
+			onComplete?: (classes: string) => string;
+	  };
+
+// Helper functions for slots
+const isSlotsConfig = <T extends VariantConfig, B extends string>(
+	config: ResponsiveClassesConfig<T, B>,
+): config is {
+	slots: SlotsConfig<string>;
+	variants?: T;
+	compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
+	onComplete?: (classes: string) => string;
+} => {
+	return "slots" in config;
+};
+
+const createSlotFunction =
+	<T extends VariantConfig, B extends string>(
+		slotConfig: SlotConfig,
+		variants: T | undefined,
+		compoundVariants: CompoundVariantWithSlots<T, string, B>[] | undefined,
+		onComplete: ((classes: string) => string) | undefined,
+		slotName: string,
+	): ((props: VariantProps<T, B>) => string) =>
+	({ className, ...props }: VariantProps<T, B>) => {
+		const responsiveClasses = Object.entries(props)
+			.map(([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
+				const variant = variants?.[key];
+				const value =
+					typeof propValue === "boolean" ? String(propValue) : propValue;
+
+				// Handle undefined values
+				if (!value) return undefined;
+
+				const variantValue = variant?.[value as keyof VariantValue];
+
+				// Handle string values
+				if (typeof variantValue === "string") {
+					return variantValue;
+				}
+
+				// Handle object values (slot-specific classes)
+				if (
+					typeof variantValue === "object" &&
+					variantValue !== null &&
+					slotName in variantValue
+				) {
+					const slotSpecificValue = variantValue[slotName];
+					if (typeof slotSpecificValue === "string") {
+						return slotSpecificValue;
+					}
+				}
+
+				// Handle responsive values
+				return Object.entries(value as Partial<BreakpointsMap<T, B>>)
+					.map(([breakpoint, value]) => {
+						// If the breakpoint is initial, return the variant value without breakpoint prefix
+						if (breakpoint === "initial") {
+							const initialVariantValue =
+								variants?.[key]?.[value as keyof typeof variant];
+							if (typeof initialVariantValue === "string") {
+								return initialVariantValue;
+							}
+							if (
+								typeof initialVariantValue === "object" &&
+								initialVariantValue !== null &&
+								slotName in initialVariantValue
+							) {
+								return initialVariantValue[slotName];
+							}
+							return undefined;
+						}
+						// Otherwise, return the variant value with the breakpoint prefix
+						const breakpointVariantValue =
+							variants?.[key]?.[value as keyof typeof variant];
+						if (typeof breakpointVariantValue === "string") {
+							return breakpointVariantValue
+								.split(" ")
+								.map((className: string) => `${breakpoint}:${className}`)
+								.join(" ");
+						}
+						if (
+							typeof breakpointVariantValue === "object" &&
+							breakpointVariantValue !== null &&
+							slotName in breakpointVariantValue
+						) {
+							const slotValue = breakpointVariantValue[slotName];
+							if (typeof slotValue === "string") {
+								return slotValue
+									.split(" ")
+									.map((className: string) => `${breakpoint}:${className}`)
+									.join(" ");
+							}
+						}
+						return undefined;
+					})
+					.filter(Boolean)
+					.join(" ");
+			})
+			.filter(Boolean)
+			.join(" ");
+
+		const compoundClasses = compoundVariants
+			?.map(
+				({ class: slotClasses, className: compoundClassName, ...compound }) => {
+					if (
+						Object.entries(compound).every(
+							([key, value]) =>
+								props[key] === String(value) || props[key] === value,
+						)
+					) {
+						// If compound variant has slot-specific classes, use those for this slot
+						if (
+							slotClasses &&
+							typeof slotClasses === "object" &&
+							slotClasses[slotName]
+						) {
+							return slotClasses[slotName];
+						}
+						// Otherwise use the general className
+						return compoundClassName;
+					}
+					return undefined;
+				},
+			)
+			.filter(Boolean);
+
+		const classes = clsx(
+			slotConfig,
+			responsiveClasses,
+			compoundClasses,
+			className,
+		);
+		return onComplete ? onComplete(classes) : classes;
+	};
+
+// Function overloads for rcv
+export function rcv<
+	T extends VariantConfig,
+	B extends string = DefaultBreakpoints,
+>(config: {
+	slots: SlotsConfig<string>;
+	variants?: T;
+	compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
+	onComplete?: (classes: string) => string;
+}): { [K in keyof typeof config.slots]: (props: VariantProps<T, B>) => string };
+
+export function rcv<
+	T extends VariantConfig,
+	B extends string = DefaultBreakpoints,
+>(config: {
 	base: string;
 	variants?: T;
 	compoundVariants?: Partial<VariantProps<T, B>>[];
 	onComplete?: (classes: string) => string;
-};
+}): (props: VariantProps<T, B>) => string;
 
-/**
- * Creates a function that generates classes based on variant configurations and responsive props
- *
- * @template T - Type extending VariantConfig (Record of variant names to their possible values and corresponding classes)
- * @template B - The breakpoints type
- *
- * @param config - Configuration object for variants
- * @param config.base - Base classes that are always applied
- * @param config.variants - Object containing variant definitions where each key is a variant name
- *                         and value is either a string of class names, an object mapping variant values to class names,
- *                         or an object with true/false keys for boolean variants
- * @param config.compoundVariants - Optional array of compound variants that apply additional classes
- *                                 when multiple variants have specific values
- * @param config.onComplete - Optional callback function that receives the generated classes and returns the final classes
- *
- * @returns A function that accepts variant props and returns classes with twMerge
- *
- * @example
- * const getButtonVariants = rcv({
- *   base: "px-4 py-2 rounded",
- *   variants: {
- *     intent: {
- *       primary: "bg-blue-500 text-white",
- *       secondary: "bg-gray-200 text-gray-800"
- *     },
- *     size: {
- *       sm: "text-sm",
- *       lg: "text-lg"
- *     },
- *     disabled: {
- *       true: "opacity-50 cursor-not-allowed"
- *     }
- *   }
- * });
- *
- * // Usage:
- * getButtonVariants({ intent: "primary", size: "lg", disabled: true })
- * // Or with responsive values:
- * getButtonVariants({ intent: { initial: "primary", md: "secondary" } })
- */
-export const rcv =
-	<T extends VariantConfig, B extends string = DefaultBreakpoints>({
-		base,
-		variants,
-		compoundVariants,
-		onComplete,
-	}: ResponsiveClassesConfig<T, B>) =>
-	({ className, ...props }: VariantProps<T, B>) => {
+export function rcv<
+	T extends VariantConfig,
+	B extends string = DefaultBreakpoints,
+>(config: ResponsiveClassesConfig<T, B>) {
+	if (isSlotsConfig(config)) {
+		const { slots, variants, compoundVariants, onComplete } = config;
+		const slotFunctions: Record<string, (props: VariantProps<T, B>) => string> =
+			{};
+
+		for (const [slotName, slotConfig] of Object.entries(slots)) {
+			slotFunctions[slotName] = createSlotFunction<T, B>(
+				slotConfig,
+				variants,
+				compoundVariants,
+				onComplete,
+				slotName,
+			);
+		}
+
+		return slotFunctions as {
+			[K in keyof typeof slots]: (props: VariantProps<T, B>) => string;
+		};
+	}
+
+	const { base, variants, compoundVariants, onComplete } = config;
+	return ({ className, ...props }: VariantProps<T, B>) => {
 		const responsiveClasses = Object.entries(props)
 			.map(([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
 				const variant = variants?.[key];
@@ -168,10 +322,15 @@ export const rcv =
 							return variants?.[key]?.[value as keyof typeof variant];
 						}
 						// Otherwise, return the variant value with the breakpoint prefix
-						return variants?.[key]?.[value as keyof typeof variant]
-							?.split(" ")
-							.map((className) => `${breakpoint}:${className}`)
-							.join(" ");
+						const breakpointVariantValue =
+							variants?.[key]?.[value as keyof typeof variant];
+						if (typeof breakpointVariantValue === "string") {
+							return breakpointVariantValue
+								.split(" ")
+								.map((className: string) => `${breakpoint}:${className}`)
+								.join(" ");
+						}
+						return undefined;
 					})
 					.join(" ");
 			})
@@ -195,6 +354,7 @@ export const rcv =
 		const classes = clsx(base, responsiveClasses, compoundClasses, className);
 		return onComplete ? onComplete(classes) : classes;
 	};
+}
 
 /**
  * Creates a custom rcv function with custom breakpoints and an optional onComplete callback
@@ -225,6 +385,37 @@ export const createRcv = <B extends string>(
 	_breakpoints?: readonly B[],
 	onComplete?: (classes: string) => string,
 ) => {
-	return <T extends VariantConfig>(config: ResponsiveClassesConfig<T, B>) =>
-		rcv<T, B>({ ...config, onComplete });
+	function customRcv<T extends VariantConfig>(config: {
+		slots: SlotsConfig<string>;
+		variants?: T;
+		compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
+		onComplete?: (classes: string) => string;
+	}): {
+		[K in keyof typeof config.slots]: (props: VariantProps<T, B>) => string;
+	};
+
+	function customRcv<T extends VariantConfig>(config: {
+		base: string;
+		variants?: T;
+		compoundVariants?: Partial<VariantProps<T, B>>[];
+		onComplete?: (classes: string) => string;
+	}): (props: VariantProps<T, B>) => string;
+
+	function customRcv<T extends VariantConfig>(
+		config: ResponsiveClassesConfig<T, B>,
+	) {
+		if (isSlotsConfig(config)) {
+			return rcv<T, B>({
+				...config,
+				onComplete: onComplete || config.onComplete,
+			});
+		} else {
+			return rcv<T, B>({
+				...config,
+				onComplete: onComplete || config.onComplete,
+			});
+		}
+	}
+
+	return customRcv;
 };

@@ -6,6 +6,7 @@ rcv helps you create responsive class variants. It handles the logic of generati
 
 - Handles the logic of generating the classes and prefixes them with the breakpoint name.
 - You just need to provide the base classes, the variants and optionally compound variants.
+- **Slots support**: Create multiple class-generating functions for different parts of a component.
 - You can use the default breakpoints (sm, md, lg, xl) or provide your own.
 - You can pass an optional onComplete callback to the createRcv function. This callback will be called with the generated classes. Helpful if you want to pass your classes to a library like twMerge.
 
@@ -28,7 +29,7 @@ The config object has the following properties:
 
 rcv works very well with tailwindcss but it can be used with any CSS solution.
 
-### With tailwind classes:
+### Basic Usage (Single Component):
 
 ```ts
 const getButtonVariants = rcv({
@@ -62,32 +63,157 @@ const getButtonVariants = rcv({
  getButtonVariants({ intent: "primary", size: "large", disabled: true })
  // Or with responsive values:
  getButtonVariants({ intent: { initial: "primary", md: "secondary" } })
+```
 
- ```
- Because of the tailwind JIT compiler, you need to make sure, that all possible classes are available with your component. Let's say you have a button component and you want to use the `size` variant responsively. You need to make sure, that the `small` and `large` classes are available with your component. You can e.g. define a `SIZES` object to define the classes for each size and breakpoints. This example assumes you have the default breakpoints (sm, md, lg, xl).
+### Slots (Multi-Part Components):
 
- ```ts
- const SIZES = {
-  sm: {
-    sm: "sm:text-sm",
-    lg: "sm:text-lg"
-  },
-  md: {
-    sm: "md:text-sm",
-    lg: "md:text-lg"
-  },
-  lg: {
-    sm: "lg:text-sm",
-    lg: "lg:text-lg"
-  },
-  xl: {
-    sm: "xl:text-sm",
-    lg: "xl:text-lg"
+When you need to style multiple parts of a component, you can use slots. This is perfect for complex components like cards, alerts, or modals.
+
+#### Simple Slots
+
+```ts
+const getCardVariants = rcv({
+  slots: {
+    base: "rounded-xl p-8 bg-white dark:bg-gray-900",
+    title: "text-xl font-bold text-gray-900 dark:text-white",
+    content: "text-gray-700 dark:text-gray-300"
   }
- }
- ```
+});
 
- The structure doesn't really matter, the classes just need to be in the compiled javascript to be picked up by the JIT compiler.
+// Usage - destructure the slot functions
+const { base, title, content } = getCardVariants;
+
+// Apply to your JSX
+<div className={base({})}>
+  <h2 className={title({})}>Card Title</h2>
+  <p className={content({})}>Card content goes here</p>
+</div>
+```
+
+#### Slots with Variants
+
+Variants can target specific slots by using objects instead of strings:
+
+```ts
+const getCardVariants = rcv({
+  slots: {
+    base: "rounded-xl p-8 bg-white dark:bg-gray-900",
+    title: "text-xl font-bold text-gray-900 dark:text-white",
+    content: "text-gray-700 dark:text-gray-300"
+  },
+  variants: {
+    shadow: {
+      none: {},
+      sm: { base: "shadow-sm" },
+      md: { base: "shadow-md" },
+      lg: { base: "shadow-lg" }
+    },
+    size: {
+      sm: { 
+        title: "text-lg",
+        content: "text-sm"
+      },
+      lg: { 
+        title: "text-2xl",
+        content: "text-lg"
+      }
+    }
+  }
+});
+
+const { base, title, content } = getCardVariants;
+
+// Usage with variants
+<div className={base({ shadow: "md", size: "lg" })}>
+  <h2 className={title({ shadow: "md", size: "lg" })}>Large Card Title</h2>
+  <p className={content({ shadow: "md", size: "lg" })}>Larger content text</p>
+</div>
+```
+
+#### Slots with Compound Variants
+
+Compound variants can also target specific slots using the `class` property:
+
+```ts
+const getAlertVariants = rcv({
+  slots: {
+    root: "rounded py-3 px-5 mb-4",
+    title: "font-bold mb-1",
+    message: "text-sm"
+  },
+  variants: {
+    variant: {
+      outlined: { root: "border" },
+      filled: {}
+    },
+    severity: {
+      error: {},
+      success: {},
+      warning: {}
+    }
+  },
+  compoundVariants: [
+    {
+      variant: "outlined",
+      severity: "error",
+      class: {
+        root: "border-red-700 dark:border-red-500",
+        title: "text-red-700 dark:text-red-500",
+        message: "text-red-600 dark:text-red-500"
+      }
+    },
+    {
+      variant: "filled",
+      severity: "success",
+      class: {
+        root: "bg-green-100 dark:bg-green-800",
+        title: "text-green-900 dark:text-green-50",
+        message: "text-green-700 dark:text-green-200"
+      }
+    }
+  ]
+});
+
+const { root, title, message } = getAlertVariants;
+
+// Usage
+<div className={root({ variant: "outlined", severity: "error" })}>
+  <h3 className={title({ variant: "outlined", severity: "error" })}>Error!</h3>
+  <p className={message({ variant: "outlined", severity: "error" })}>Something went wrong</p>
+</div>
+```
+
+#### Slots with Responsive Values
+
+Slots work seamlessly with responsive values:
+
+```ts
+const getCardVariants = rcv({
+  slots: {
+    base: "rounded-xl p-4 bg-white",
+    title: "font-bold text-gray-900"
+  },
+  variants: {
+    size: {
+      sm: { 
+        base: "p-2",
+        title: "text-sm"
+      },
+      lg: { 
+        base: "p-8",
+        title: "text-2xl"
+      }
+    }
+  }
+});
+
+const { base, title } = getCardVariants;
+
+// Responsive usage
+<div className={base({ size: { initial: "sm", md: "lg" } })}>
+  <h2 className={title({ size: { initial: "sm", md: "lg" } })}>Responsive Card</h2>
+</div>
+```
 
 ### With css classes (like BEM or any other naming convention):
 
@@ -120,6 +246,31 @@ const getButtonVariants = rcv({
 });
 ```
 
+Because of the tailwind JIT compiler, you need to make sure, that all possible classes are available with your component. Let's say you have a button component and you want to use the `size` variant responsively. You need to make sure, that the `small` and `large` classes are available with your component. You can e.g. define a `SIZES` object to define the classes for each size and breakpoints. This example assumes you have the default breakpoints (sm, md, lg, xl).
+
+```ts
+const SIZES = {
+ sm: {
+   sm: "sm:text-sm",
+   lg: "sm:text-lg"
+ },
+ md: {
+   sm: "md:text-sm",
+   lg: "md:text-lg"
+ },
+ lg: {
+   sm: "lg:text-sm",
+   lg: "lg:text-lg"
+ },
+ xl: {
+   sm: "xl:text-sm",
+   lg: "xl:text-lg"
+ }
+}
+```
+
+The structure doesn't really matter, the classes just need to be in the compiled javascript to be picked up by the JIT compiler.
+
 ## Custom breakpoints (via createRcv)
 
 ```ts
@@ -137,6 +288,20 @@ const getButtonVariants = rcv({
 
 // Usage with custom breakpoints:
 getButtonVariants({ intent: { initial: "primary", mobile: "secondary", desktop: "primary" } })
+
+// Works with slots too:
+const getCardVariants = rcv({
+  slots: {
+    base: "rounded-xl p-4 bg-white",
+    title: "font-bold text-gray-900"
+  },
+  variants: {
+    size: {
+      sm: { base: "p-2", title: "text-sm" },
+      lg: { base: "p-8", title: "text-2xl" }
+    }
+  }
+});
 ```
 
 ## onComplete callback (via createRcv)

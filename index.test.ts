@@ -111,7 +111,6 @@ describe("responsive-class-variants", () => {
 	});
 
 	it("should handle undefined values", () => {
-		// @ts-expect-error - undefined is not assignable to type 'ResponsiveValue<"primary" | "secondary">'
 		const result = getButtonVariants({ intent: undefined });
 		expect(result).toBe("rounded px-4 py-2");
 	});
@@ -201,5 +200,218 @@ describe("createRcv", () => {
 		});
 
 		expect(result).toBe("text-sm text-white bg-blue-500 rounded py-2 px-4");
+	});
+});
+
+describe("slots", () => {
+	it("should handle simple slots", () => {
+		const { base, title, content } = rcv({
+			slots: {
+				base: "rounded-xl p-8 bg-white dark:bg-gray-900",
+				title: "text-xl font-bold text-gray-900 dark:text-white",
+				content: "text-gray-700 dark:text-gray-300",
+			},
+		});
+
+		expect(base({})).toBe("rounded-xl p-8 bg-white dark:bg-gray-900");
+		expect(title({})).toBe("text-xl font-bold text-gray-900 dark:text-white");
+		expect(content({})).toBe("text-gray-700 dark:text-gray-300");
+	});
+
+	it("should handle slots with variants", () => {
+		const { base, title, content } = rcv({
+			slots: {
+				base: "rounded-xl p-8 bg-white dark:bg-gray-900",
+				title: "text-xl font-bold text-gray-900 dark:text-white",
+				content: "text-gray-700 dark:text-gray-300",
+			},
+			variants: {
+				shadow: {
+					none: {},
+					sm: { base: "shadow-sm" },
+					md: { base: "shadow-md" },
+					lg: { base: "shadow-lg" },
+				},
+				size: {
+					sm: {
+						title: "text-lg",
+						content: "text-sm",
+					},
+					md: {
+						title: "text-xl",
+						content: "text-base",
+					},
+					lg: {
+						title: "text-2xl",
+						content: "text-lg",
+					},
+				},
+			},
+		});
+
+		// Test shadow variant
+		expect(base({ shadow: "md" })).toContain("shadow-md");
+		expect(title({ shadow: "md" })).toBe(
+			"text-xl font-bold text-gray-900 dark:text-white",
+		);
+		expect(content({ shadow: "md" })).toBe("text-gray-700 dark:text-gray-300");
+
+		// Test size variant
+		expect(base({ size: "lg" })).toBe(
+			"rounded-xl p-8 bg-white dark:bg-gray-900",
+		);
+		expect(title({ size: "lg" })).toContain("text-2xl");
+		expect(content({ size: "lg" })).toContain("text-lg");
+
+		// Test combined variants
+		expect(base({ shadow: "lg", size: "sm" })).toContain("shadow-lg");
+		expect(title({ shadow: "lg", size: "sm" })).toContain("text-lg");
+		expect(content({ shadow: "lg", size: "sm" })).toContain("text-sm");
+	});
+
+	it("should handle slots with compound variants", () => {
+		const { root, title, message } = rcv({
+			slots: {
+				root: "rounded py-3 px-5 mb-4",
+				title: "font-bold mb-1",
+				message: "text-sm",
+			},
+			variants: {
+				variant: {
+					outlined: { root: "border" },
+					filled: {},
+				},
+				severity: {
+					error: {},
+					success: {},
+					warning: {},
+				},
+			},
+			compoundVariants: [
+				{
+					variant: "outlined",
+					severity: "error",
+					class: {
+						root: "border-red-700 dark:border-red-500",
+						title: "text-red-700 dark:text-red-500",
+						message: "text-red-600 dark:text-red-500",
+					},
+				},
+				{
+					variant: "outlined",
+					severity: "success",
+					class: {
+						root: "border-green-700 dark:border-green-500",
+						title: "text-green-700 dark:text-green-500",
+						message: "text-green-600 dark:text-green-500",
+					},
+				},
+				{
+					variant: "filled",
+					severity: "error",
+					class: {
+						root: "bg-red-100 dark:bg-red-800",
+						title: "text-red-900 dark:text-red-50",
+						message: "text-red-700 dark:text-red-200",
+					},
+				},
+				{
+					variant: "filled",
+					severity: "warning",
+					class: {
+						root: "bg-yellow-100 dark:bg-yellow-800",
+						title: "text-yellow-900 dark:text-yellow-50",
+						message: "text-yellow-700 dark:text-yellow-200",
+					},
+				},
+			],
+		});
+
+		// Test outlined error compound variant
+		expect(root({ variant: "outlined", severity: "error" })).toContain(
+			"border",
+		);
+		expect(root({ variant: "outlined", severity: "error" })).toContain(
+			"border-red-700 dark:border-red-500",
+		);
+		expect(title({ variant: "outlined", severity: "error" })).toContain(
+			"text-red-700 dark:text-red-500",
+		);
+		expect(message({ variant: "outlined", severity: "error" })).toContain(
+			"text-red-600 dark:text-red-500",
+		);
+
+		// Test filled warning compound variant
+		expect(root({ variant: "filled", severity: "warning" })).toContain(
+			"bg-yellow-100 dark:bg-yellow-800",
+		);
+		expect(title({ variant: "filled", severity: "warning" })).toContain(
+			"text-yellow-900 dark:text-yellow-50",
+		);
+		expect(message({ variant: "filled", severity: "warning" })).toContain(
+			"text-yellow-700 dark:text-yellow-200",
+		);
+
+		// Test non-matching compound variant (should only apply base variant classes)
+		expect(root({ variant: "outlined", severity: "warning" })).toContain(
+			"border",
+		);
+		expect(root({ variant: "outlined", severity: "warning" })).not.toContain(
+			"border-red-700",
+		);
+		expect(root({ variant: "outlined", severity: "warning" })).not.toContain(
+			"bg-yellow-100",
+		);
+		expect(title({ variant: "outlined", severity: "warning" })).toBe(
+			"font-bold mb-1",
+		);
+		expect(message({ variant: "outlined", severity: "warning" })).toBe(
+			"text-sm",
+		);
+	});
+
+	it("should handle slots with responsive values", () => {
+		const { base, title } = rcv({
+			slots: {
+				base: "rounded-xl p-4 bg-white",
+				title: "font-bold text-gray-900",
+			},
+			variants: {
+				size: {
+					sm: {
+						base: "p-2",
+						title: "text-sm",
+					},
+					lg: {
+						base: "p-8",
+						title: "text-2xl",
+					},
+				},
+			},
+		});
+
+		expect(base({ size: { initial: "sm", md: "lg" } })).toContain("p-2");
+		expect(base({ size: { initial: "sm", md: "lg" } })).toContain("md:p-8");
+		expect(title({ size: { initial: "sm", md: "lg" } })).toContain("text-sm");
+		expect(title({ size: { initial: "sm", md: "lg" } })).toContain(
+			"md:text-2xl",
+		);
+	});
+
+	it("should handle slots with custom className", () => {
+		const { base, title } = rcv({
+			slots: {
+				base: "rounded-xl p-8 bg-white",
+				title: "text-xl font-bold",
+			},
+			variants: {},
+		});
+
+		expect(base({ className: "custom-base-class" })).toContain(
+			"custom-base-class",
+		);
+		expect(title({ className: "custom-title-class" })).toContain(
+			"custom-title-class",
+		);
 	});
 });
