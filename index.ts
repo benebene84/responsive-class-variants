@@ -105,19 +105,23 @@ type CompoundVariantWithSlots<
 	className?: string;
 };
 
+type ResponsiveClassesConfigBase<T extends VariantConfig, B extends string> = {
+	base: string;
+	variants?: T;
+	compoundVariants?: Partial<VariantProps<T, B>>[];
+	onComplete?: (classes: string) => string;
+};
+
+type ResponsiveClassesConfigSlots<T extends VariantConfig, B extends string> = {
+	slots: SlotsConfig<string>;
+	variants?: T;
+	compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
+	onComplete?: (classes: string) => string;
+};
+
 type ResponsiveClassesConfig<T extends VariantConfig, B extends string> =
-	| {
-			base: string;
-			variants?: T;
-			compoundVariants?: Partial<VariantProps<T, B>>[];
-			onComplete?: (classes: string) => string;
-	  }
-	| {
-			slots: SlotsConfig<string>;
-			variants?: T;
-			compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
-			onComplete?: (classes: string) => string;
-	  };
+	| ResponsiveClassesConfigBase<T, B>
+	| ResponsiveClassesConfigSlots<T, B>;
 
 // Helper functions for slots
 const isSlotsConfig = <T extends VariantConfig, B extends string>(
@@ -131,6 +135,116 @@ const isSlotsConfig = <T extends VariantConfig, B extends string>(
 	return "slots" in config;
 };
 
+const prefixClasses = (classes: string, prefix: string) =>
+	classes
+		.split(" ")
+		.map((className) => `${prefix}:${className}`)
+		.join(" ");
+
+// Helper function to get variant value for a specific slot or base
+const getVariantValue = <T extends VariantConfig>(
+	variants: T | undefined,
+	key: keyof T,
+	value: string,
+	slotName?: string,
+) => {
+	const variant = variants?.[key];
+	const variantValue = variant?.[value as keyof VariantValue];
+
+	// Handle string values
+	if (typeof variantValue === "string") {
+		return variantValue;
+	}
+
+	// Handle object values (slot-specific classes)
+	if (
+		typeof variantValue === "object" &&
+		variantValue !== null &&
+		slotName &&
+		slotName in variantValue
+	) {
+		const slotSpecificValue = variantValue[slotName];
+		if (typeof slotSpecificValue === "string") {
+			return slotSpecificValue;
+		}
+	}
+
+	return undefined;
+};
+
+// Helper function to process responsive values
+const processResponsiveValue = <T extends VariantConfig, B extends string>(
+	variants: T | undefined,
+	key: keyof T,
+	value: Partial<BreakpointsMap<T, B>>,
+	slotName?: string,
+) => {
+	return Object.entries(value)
+		.map(([breakpoint, breakpointValue]) => {
+			const variantValue = getVariantValue(
+				variants,
+				key,
+				breakpointValue as string,
+				slotName,
+			);
+
+			if (!variantValue) return undefined;
+
+			// If the breakpoint is initial, return without prefix
+			if (breakpoint === "initial") {
+				return variantValue;
+			}
+
+			// Otherwise, return with breakpoint prefix
+			return prefixClasses(variantValue, breakpoint);
+		})
+		.filter(Boolean)
+		.join(" ");
+};
+
+// Helper function to process variant props into classes
+const processVariantProps = <T extends VariantConfig, B extends string>(
+	props: Omit<VariantProps<T, B>, "className">,
+	variants: T | undefined,
+	slotName?: string,
+) => {
+	return Object.entries(props)
+		.map(([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
+			const value =
+				typeof propValue === "boolean" ? String(propValue) : propValue;
+
+			// Handle undefined values
+			if (!value) return undefined;
+
+			// Handle singular values
+			if (typeof value === "string") {
+				return getVariantValue(variants, key, value, slotName);
+			}
+
+			// Handle responsive values
+			return processResponsiveValue(
+				variants,
+				key,
+				value as Partial<BreakpointsMap<T, B>>,
+				slotName,
+			);
+		})
+		.filter(Boolean)
+		.join(" ");
+};
+
+// Helper function to match compound variants
+const matchesCompoundVariant = <T extends VariantConfig, B extends string>(
+	compound: Omit<CompoundVariantWithSlots<T, string, B>, "className" | "class">,
+	props: Omit<VariantProps<T, B>, "className">,
+) => {
+	return Object.entries(compound).every(
+		([key, value]) =>
+			props[key as keyof typeof props] === String(value) ||
+			props[key as keyof typeof props] === value,
+	);
+};
+
 const createSlotFunction =
 	<T extends VariantConfig, B extends string>(
 		slotConfig: SlotConfig,
@@ -138,94 +252,14 @@ const createSlotFunction =
 		compoundVariants: CompoundVariantWithSlots<T, string, B>[] | undefined,
 		onComplete: ((classes: string) => string) | undefined,
 		slotName: string,
-	): ((props?: VariantProps<T, B>) => string) =>
+	) =>
 	({ className, ...props }: VariantProps<T, B> = {} as VariantProps<T, B>) => {
-		const responsiveClasses = Object.entries(props)
-			.map(([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
-				const variant = variants?.[key];
-				const value =
-					typeof propValue === "boolean" ? String(propValue) : propValue;
-
-				// Handle undefined values
-				if (!value) return undefined;
-
-				const variantValue = variant?.[value as keyof VariantValue];
-
-				// Handle string values
-				if (typeof variantValue === "string") {
-					return variantValue;
-				}
-
-				// Handle object values (slot-specific classes)
-				if (
-					typeof variantValue === "object" &&
-					variantValue !== null &&
-					slotName in variantValue
-				) {
-					const slotSpecificValue = variantValue[slotName];
-					if (typeof slotSpecificValue === "string") {
-						return slotSpecificValue;
-					}
-				}
-
-				// Handle responsive values
-				return Object.entries(value as Partial<BreakpointsMap<T, B>>)
-					.map(([breakpoint, value]) => {
-						// If the breakpoint is initial, return the variant value without breakpoint prefix
-						if (breakpoint === "initial") {
-							const initialVariantValue =
-								variants?.[key]?.[value as keyof typeof variant];
-							if (typeof initialVariantValue === "string") {
-								return initialVariantValue;
-							}
-							if (
-								typeof initialVariantValue === "object" &&
-								initialVariantValue !== null &&
-								slotName in initialVariantValue
-							) {
-								return initialVariantValue[slotName];
-							}
-							return undefined;
-						}
-						// Otherwise, return the variant value with the breakpoint prefix
-						const breakpointVariantValue =
-							variants?.[key]?.[value as keyof typeof variant];
-						if (typeof breakpointVariantValue === "string") {
-							return breakpointVariantValue
-								.split(" ")
-								.map((className: string) => `${breakpoint}:${className}`)
-								.join(" ");
-						}
-						if (
-							typeof breakpointVariantValue === "object" &&
-							breakpointVariantValue !== null &&
-							slotName in breakpointVariantValue
-						) {
-							const slotValue = breakpointVariantValue[slotName];
-							if (typeof slotValue === "string") {
-								return slotValue
-									.split(" ")
-									.map((className: string) => `${breakpoint}:${className}`)
-									.join(" ");
-							}
-						}
-						return undefined;
-					})
-					.filter(Boolean)
-					.join(" ");
-			})
-			.filter(Boolean)
-			.join(" ");
+		const responsiveClasses = processVariantProps(props, variants, slotName);
 
 		const compoundClasses = compoundVariants
 			?.map(
 				({ class: slotClasses, className: compoundClassName, ...compound }) => {
-					if (
-						Object.entries(compound).every(
-							([key, value]) =>
-								props[key] === String(value) || props[key] === value,
-						)
-					) {
+					if (matchesCompoundVariant(compound, props)) {
 						// If compound variant has slot-specific classes, use those for this slot
 						if (
 							slotClasses &&
@@ -278,11 +312,13 @@ export function rcv<
 	T extends VariantConfig,
 	B extends string = DefaultBreakpoints,
 >(config: ResponsiveClassesConfig<T, B>) {
+	// Check if config is a slots config
 	if (isSlotsConfig(config)) {
 		const { slots, variants, compoundVariants, onComplete } = config;
 		const slotFunctions: Record<string, (props: VariantProps<T, B>) => string> =
 			{};
 
+		// Create slot functions for each slot
 		for (const [slotName, slotConfig] of Object.entries(slots)) {
 			slotFunctions[slotName] = createSlotFunction<T, B>(
 				slotConfig,
@@ -298,56 +334,23 @@ export function rcv<
 		};
 	}
 
+	// If config is not a slots config, create a base function
 	const { base, variants, compoundVariants, onComplete } = config;
 	return ({ className, ...props }: VariantProps<T, B>) => {
-		const responsiveClasses = Object.entries(props)
-			.map(([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
-				const variant = variants?.[key];
-				const value =
-					typeof propValue === "boolean" ? String(propValue) : propValue;
-
-				// Handle undefined values
-				if (!value) return undefined;
-
-				const variantValue = variant?.[value as keyof VariantValue];
-
-				// Handle string values
-				if (typeof variantValue === "string") {
-					return variantValue;
-				}
-
-				// Handle responsive values
-				return Object.entries(value as Partial<BreakpointsMap<T, B>>)
-					.map(([breakpoint, value]) => {
-						// If the breakpoint is initial, return the variant value without breakpoint prefix
-						if (breakpoint === "initial") {
-							return variants?.[key]?.[value as keyof typeof variant];
-						}
-						// Otherwise, return the variant value with the breakpoint prefix
-						const breakpointVariantValue =
-							variants?.[key]?.[value as keyof typeof variant];
-						if (typeof breakpointVariantValue === "string") {
-							return breakpointVariantValue
-								.split(" ")
-								.map((className: string) => `${breakpoint}:${className}`)
-								.join(" ");
-						}
-						return undefined;
-					})
-					.join(" ");
-			})
-			.filter(Boolean)
-			.join(" ");
+		const responsiveClasses = processVariantProps(props, variants);
 
 		const compoundClasses = compoundVariants
-			?.map(({ className, ...compound }) => {
+			?.map(({ className: compoundClassName, ...compound }) => {
 				if (
-					Object.entries(compound).every(
-						([key, value]) =>
-							props[key] === String(value) || props[key] === value,
+					matchesCompoundVariant(
+						compound as Omit<
+							CompoundVariantWithSlots<T, string, B>,
+							"className" | "class"
+						>,
+						props,
 					)
 				) {
-					return className;
+					return compoundClassName;
 				}
 				return undefined;
 			})
