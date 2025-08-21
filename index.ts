@@ -138,8 +138,8 @@ const createSlotFunction =
 		compoundVariants: CompoundVariantWithSlots<T, string, B>[] | undefined,
 		onComplete: ((classes: string) => string) | undefined,
 		slotName: string,
-	): ((props: VariantProps<T, B>) => string) =>
-	({ className, ...props }: VariantProps<T, B>) => {
+	): ((props?: VariantProps<T, B>) => string) =>
+	({ className, ...props }: VariantProps<T, B> = {} as VariantProps<T, B>) => {
 		const responsiveClasses = Object.entries(props)
 			.map(([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
 				const variant = variants?.[key];
@@ -260,7 +260,9 @@ export function rcv<
 	variants?: T;
 	compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
 	onComplete?: (classes: string) => string;
-}): { [K in keyof typeof config.slots]: (props: VariantProps<T, B>) => string };
+}): {
+	[K in keyof typeof config.slots]: (props?: VariantProps<T, B>) => string;
+};
 
 export function rcv<
 	T extends VariantConfig,
@@ -292,7 +294,7 @@ export function rcv<
 		}
 
 		return slotFunctions as {
-			[K in keyof typeof slots]: (props: VariantProps<T, B>) => string;
+			[K in keyof typeof slots]: (props?: VariantProps<T, B>) => string;
 		};
 	}
 
@@ -391,7 +393,7 @@ export const createRcv = <B extends string>(
 		compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
 		onComplete?: (classes: string) => string;
 	}): {
-		[K in keyof typeof config.slots]: (props: VariantProps<T, B>) => string;
+		[K in keyof typeof config.slots]: (props?: VariantProps<T, B>) => string;
 	};
 
 	function customRcv<T extends VariantConfig>(config: {

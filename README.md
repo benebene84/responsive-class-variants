@@ -83,10 +83,10 @@ const getCardVariants = rcv({
 // Usage - destructure the slot functions
 const { base, title, content } = getCardVariants;
 
-// Apply to your JSX
-<div className={base({})}>
-  <h2 className={title({})}>Card Title</h2>
-  <p className={content({})}>Card content goes here</p>
+// Apply to your JSX - no arguments needed for simple slots!
+<div className={base()}>
+  <h2 className={title()}>Card Title</h2>
+  <p className={content()}>Card content goes here</p>
 </div>
 ```
 

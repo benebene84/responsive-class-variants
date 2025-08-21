@@ -213,9 +213,9 @@ describe("slots", () => {
 			},
 		});
 
-		expect(base({})).toBe("rounded-xl p-8 bg-white dark:bg-gray-900");
-		expect(title({})).toBe("text-xl font-bold text-gray-900 dark:text-white");
-		expect(content({})).toBe("text-gray-700 dark:text-gray-300");
+		expect(base()).toBe("rounded-xl p-8 bg-white dark:bg-gray-900");
+		expect(title()).toBe("text-xl font-bold text-gray-900 dark:text-white");
+		expect(content()).toBe("text-gray-700 dark:text-gray-300");
 	});
 
 	it("should handle slots with variants", () => {
@@ -249,21 +249,18 @@ describe("slots", () => {
 			},
 		});
 
-		// Test shadow variant
 		expect(base({ shadow: "md" })).toContain("shadow-md");
 		expect(title({ shadow: "md" })).toBe(
 			"text-xl font-bold text-gray-900 dark:text-white",
 		);
 		expect(content({ shadow: "md" })).toBe("text-gray-700 dark:text-gray-300");
 
-		// Test size variant
 		expect(base({ size: "lg" })).toBe(
 			"rounded-xl p-8 bg-white dark:bg-gray-900",
 		);
 		expect(title({ size: "lg" })).toContain("text-2xl");
 		expect(content({ size: "lg" })).toContain("text-lg");
 
-		// Test combined variants
 		expect(base({ shadow: "lg", size: "sm" })).toContain("shadow-lg");
 		expect(title({ shadow: "lg", size: "sm" })).toContain("text-lg");
 		expect(content({ shadow: "lg", size: "sm" })).toContain("text-sm");
@@ -327,7 +324,6 @@ describe("slots", () => {
 			],
 		});
 
-		// Test outlined error compound variant
 		expect(root({ variant: "outlined", severity: "error" })).toContain(
 			"border",
 		);
@@ -341,7 +337,6 @@ describe("slots", () => {
 			"text-red-600 dark:text-red-500",
 		);
 
-		// Test filled warning compound variant
 		expect(root({ variant: "filled", severity: "warning" })).toContain(
 			"bg-yellow-100 dark:bg-yellow-800",
 		);
@@ -352,7 +347,6 @@ describe("slots", () => {
 			"text-yellow-700 dark:text-yellow-200",
 		);
 
-		// Test non-matching compound variant (should only apply base variant classes)
 		expect(root({ variant: "outlined", severity: "warning" })).toContain(
 			"border",
 		);
