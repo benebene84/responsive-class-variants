@@ -205,13 +205,15 @@ describe("createRcv", () => {
 
 describe("slots", () => {
 	it("should handle simple slots", () => {
-		const { base, title, content } = rcv({
+		const demoStyles = rcv({
 			slots: {
 				base: "rounded-xl p-8 bg-white dark:bg-gray-900",
 				title: "text-xl font-bold text-gray-900 dark:text-white",
 				content: "text-gray-700 dark:text-gray-300",
 			},
 		});
+
+		const { base, title, content } = demoStyles;
 
 		expect(base()).toBe("rounded-xl p-8 bg-white dark:bg-gray-900");
 		expect(title()).toBe("text-xl font-bold text-gray-900 dark:text-white");
