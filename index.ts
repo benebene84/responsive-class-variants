@@ -94,7 +94,7 @@ type VariantProps<T extends VariantConfig, B extends string> = {
 // Slot configuration types
 type SlotConfig = string;
 
-type SlotsConfig<S extends string> = Record<S, SlotConfig>;
+type SlotsConfig<S extends Record<string, string>> = S;
 
 type CompoundVariantWithSlots<
 	T extends VariantConfig,
@@ -112,26 +112,25 @@ type ResponsiveClassesConfigBase<T extends VariantConfig, B extends string> = {
 	onComplete?: (classes: string) => string;
 };
 
-type ResponsiveClassesConfigSlots<T extends VariantConfig, B extends string> = {
-	slots: SlotsConfig<string>;
+type ResponsiveClassesConfigSlots<
+	T extends VariantConfig,
+	S extends Record<string, string>,
+	B extends string,
+> = {
+	slots: SlotsConfig<S>;
 	variants?: T;
-	compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
+	compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
 	onComplete?: (classes: string) => string;
 };
 
 type ResponsiveClassesConfig<T extends VariantConfig, B extends string> =
 	| ResponsiveClassesConfigBase<T, B>
-	| ResponsiveClassesConfigSlots<T, B>;
+	| ResponsiveClassesConfigSlots<T, Record<string, string>, B>;
 
 // Helper functions for slots
 const isSlotsConfig = <T extends VariantConfig, B extends string>(
 	config: ResponsiveClassesConfig<T, B>,
-): config is {
-	slots: SlotsConfig<string>;
-	variants?: T;
-	compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
-	onComplete?: (classes: string) => string;
-} => {
+): config is ResponsiveClassesConfigSlots<T, Record<string, string>, B> => {
 	return "slots" in config;
 };
 
@@ -288,14 +287,15 @@ const createSlotFunction =
 // Function overloads for rcv
 export function rcv<
 	T extends VariantConfig,
+	S extends Record<string, string>,
 	B extends string = DefaultBreakpoints,
 >(config: {
-	slots: SlotsConfig<string>;
+	slots: S;
 	variants?: T;
-	compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
+	compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
 	onComplete?: (classes: string) => string;
 }): {
-	[K in keyof typeof config.slots]: (props?: VariantProps<T, B>) => string;
+	[K in keyof S]: (props?: VariantProps<T, B>) => string;
 };
 
 export function rcv<
@@ -310,17 +310,28 @@ export function rcv<
 
 export function rcv<
 	T extends VariantConfig,
+	S extends Record<string, string>,
 	B extends string = DefaultBreakpoints,
->(config: ResponsiveClassesConfig<T, B>) {
+>(
+	config:
+		| ResponsiveClassesConfig<T, B>
+		| {
+				slots: S;
+				variants?: T;
+				compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
+				onComplete?: (classes: string) => string;
+		  },
+) {
 	// Check if config is a slots config
 	if (isSlotsConfig(config)) {
 		const { slots, variants, compoundVariants, onComplete } = config;
-		const slotFunctions: Record<string, (props: VariantProps<T, B>) => string> =
-			{};
+		const slotFunctions = {} as {
+			[K in keyof S]: (props?: VariantProps<T, B>) => string;
+		};
 
-		// Create slot functions for each slot
+		// Create slot functions for each slot - ensure all slots are always present
 		for (const [slotName, slotConfig] of Object.entries(slots)) {
-			slotFunctions[slotName] = createSlotFunction<T, B>(
+			slotFunctions[slotName as keyof S] = createSlotFunction<T, B>(
 				slotConfig,
 				variants,
 				compoundVariants,
@@ -329,9 +340,7 @@ export function rcv<
 			);
 		}
 
-		return slotFunctions as {
-			[K in keyof typeof slots]: (props?: VariantProps<T, B>) => string;
-		};
+		return slotFunctions;
 	}
 
 	// If config is not a slots config, create a base function
@@ -390,13 +399,16 @@ export const createRcv = <B extends string>(
 	_breakpoints?: readonly B[],
 	onComplete?: (classes: string) => string,
 ) => {
-	function customRcv<T extends VariantConfig>(config: {
-		slots: SlotsConfig<string>;
+	function customRcv<
+		T extends VariantConfig,
+		S extends Record<string, string>,
+	>(config: {
+		slots: S;
 		variants?: T;
-		compoundVariants?: CompoundVariantWithSlots<T, string, B>[];
+		compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
 		onComplete?: (classes: string) => string;
 	}): {
-		[K in keyof typeof config.slots]: (props?: VariantProps<T, B>) => string;
+		[K in keyof S]: (props?: VariantProps<T, B>) => string;
 	};
 
 	function customRcv<T extends VariantConfig>(config: {
@@ -406,13 +418,25 @@ export const createRcv = <B extends string>(
 		onComplete?: (classes: string) => string;
 	}): (props: VariantProps<T, B>) => string;
 
-	function customRcv<T extends VariantConfig>(
-		config: ResponsiveClassesConfig<T, B>,
+	function customRcv<T extends VariantConfig, S extends Record<string, string>>(
+		config:
+			| ResponsiveClassesConfig<T, B>
+			| {
+					slots: S;
+					variants?: T;
+					compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
+					onComplete?: (classes: string) => string;
+			  },
 	) {
 		if (isSlotsConfig(config)) {
-			return rcv<T, B>({
+			return rcv<T, S, B>({
 				...config,
 				onComplete: onComplete || config.onComplete,
+			} as {
+				slots: S;
+				variants?: T;
+				compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
+				onComplete?: (classes: string) => string;
 			});
 		} else {
 			return rcv<T, B>({
