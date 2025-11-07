@@ -71,7 +71,13 @@ export const mapResponsiveValue = <V, T, B extends string = DefaultBreakpoints>(
  * Start of rcv and types
  */
 
-type VariantValue = Record<string, string | Record<string, string>>;
+type ValueType =
+	| string
+	| string[]
+	| Record<string, string>
+	| Record<string, string[]>;
+
+type VariantValue = Record<string, ValueType>;
 type VariantConfig = Record<string, VariantValue>;
 
 type StringBoolean = "true" | "false";
@@ -148,11 +154,18 @@ const getVariantValue = <T extends VariantConfig>(
 	slotName?: string,
 ) => {
 	const variant = variants?.[key];
-	const variantValue = variant?.[value as keyof VariantValue];
+	const variantValue = variant?.[value];
 
 	// Handle string values
 	if (typeof variantValue === "string") {
 		return variantValue;
+	}
+
+	// Handle variants with string array values
+	if (Array.isArray(variantValue)) {
+		if (variantValue.every((item) => typeof item === "string")) {
+			return variantValue.join(" ");
+		}
 	}
 
 	// Handle object values (slot-specific classes)
@@ -162,7 +175,8 @@ const getVariantValue = <T extends VariantConfig>(
 		slotName &&
 		slotName in variantValue
 	) {
-		const slotSpecificValue = variantValue[slotName];
+		const slotSpecificValue =
+			variantValue[slotName as keyof typeof variantValue];
 		if (typeof slotSpecificValue === "string") {
 			return slotSpecificValue;
 		}
