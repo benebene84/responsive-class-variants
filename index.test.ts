@@ -74,6 +74,22 @@ describe("responsive-class-variants", () => {
 		expect(result).toContain("text-sm bg-blue-500");
 	});
 
+	it("should handle variant values as arrays in slots", () => {
+		const styles = rcv({
+			slots: {
+				root: ["flex max-h-[180px]", "bg-background-strong", "rounded-50"],
+				wrapper: ["flex", "items-center", "justify-center"],
+			},
+		});
+		const { root, wrapper } = styles();
+		expect(root()).toContain("bg-background-strong");
+		expect(root()).toContain("rounded-50");
+		expect(root()).toContain("flex max-h-[180px]");
+		expect(wrapper()).toContain("flex");
+		expect(wrapper()).toContain("items-center");
+		expect(wrapper()).toContain("justify-center");
+	});
+
 	it("should apply compound variants when conditions match", () => {
 		const result = getButtonVariants({
 			intent: "primary",
