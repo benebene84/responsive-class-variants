@@ -114,6 +114,15 @@ describe("responsive-class-variants", () => {
 		const result = getButtonVariants({ intent: undefined });
 		expect(result).toBe("rounded px-4 py-2");
 	});
+
+	it("should handle className only if no variants are applied", () => {
+		const getButtonVariants = rcv({
+			base: "rounded px-4 py-2",
+		});
+
+		const result = getButtonVariants({ className: "custom-class" });
+		expect(result).toBe("rounded px-4 py-2 custom-class");
+	});
 });
 
 describe("createRcv", () => {
@@ -213,7 +222,7 @@ describe("slots", () => {
 			},
 		});
 
-		const { base, title, content } = demoStyles;
+		const { base, title, content } = demoStyles();
 
 		expect(base()).toBe("rounded-xl p-8 bg-white dark:bg-gray-900");
 		expect(title()).toBe("text-xl font-bold text-gray-900 dark:text-white");
@@ -221,7 +230,7 @@ describe("slots", () => {
 	});
 
 	it("should handle slots with variants", () => {
-		const { base, title, content } = rcv({
+		const demoStyles = rcv({
 			slots: {
 				base: "rounded-xl p-8 bg-white dark:bg-gray-900",
 				title: "text-xl font-bold text-gray-900 dark:text-white",
@@ -250,6 +259,7 @@ describe("slots", () => {
 				},
 			},
 		});
+		const { base, title, content } = demoStyles();
 
 		expect(base({ shadow: "md" })).toContain("shadow-md");
 		expect(title({ shadow: "md" })).toBe(
@@ -269,7 +279,7 @@ describe("slots", () => {
 	});
 
 	it("should handle slots with compound variants", () => {
-		const { root, title, message } = rcv({
+		const slotStyles = rcv({
 			slots: {
 				root: "rounded py-3 px-5 mb-4",
 				title: "font-bold mb-1",
@@ -325,6 +335,7 @@ describe("slots", () => {
 				},
 			],
 		});
+		const { root, title, message } = slotStyles();
 
 		expect(root({ variant: "outlined", severity: "error" })).toContain(
 			"border",
@@ -367,7 +378,7 @@ describe("slots", () => {
 	});
 
 	it("should handle slots with responsive values", () => {
-		const { base, title } = rcv({
+		const responsiveSlots = rcv({
 			slots: {
 				base: "rounded-xl p-4 bg-white",
 				title: "font-bold text-gray-900",
@@ -385,6 +396,7 @@ describe("slots", () => {
 				},
 			},
 		});
+		const { base, title } = responsiveSlots();
 
 		expect(base({ size: { initial: "sm", md: "lg" } })).toContain("p-2");
 		expect(base({ size: { initial: "sm", md: "lg" } })).toContain("md:p-8");
@@ -395,13 +407,14 @@ describe("slots", () => {
 	});
 
 	it("should handle slots with custom className", () => {
-		const { base, title } = rcv({
+		const slotStyles = rcv({
 			slots: {
 				base: "rounded-xl p-8 bg-white",
 				title: "text-xl font-bold",
 			},
 			variants: {},
 		});
+		const { base, title } = slotStyles();
 
 		expect(base({ className: "custom-base-class" })).toContain(
 			"custom-base-class",
