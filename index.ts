@@ -71,18 +71,16 @@ export const mapResponsiveValue = <V, T, B extends string = DefaultBreakpoints>(
  * Start of rcv and types
  */
 
-type ValueType =
-	| string
-	| string[]
-	| Record<string, string>
-	| Record<string, string[]>;
+type ClassValue = string | ReadonlyArray<string>;
+
+type ValueType = ClassValue | Record<string, ClassValue>;
 
 type VariantValue = Record<string, ValueType>;
 type VariantConfig = Record<string, VariantValue>;
 
 type StringBoolean = "true" | "false";
 type BooleanVariant = Partial<
-	Record<StringBoolean, string | Record<string, string>>
+	Record<StringBoolean, ClassValue | Record<string, ClassValue>>
 >;
 
 type VariantPropValue<T, B extends string> = T extends BooleanVariant
@@ -98,16 +96,16 @@ type VariantProps<T extends VariantConfig, B extends string> = {
 };
 
 // Slot configuration types
-type SlotConfig = string;
+type SlotConfig = ClassValue;
 
-type SlotsConfig<S extends Record<string, string>> = S;
+type SlotsConfig<S extends Record<string, SlotConfig>> = S;
 
 type CompoundVariantWithSlots<
 	T extends VariantConfig,
 	S extends string,
 	B extends string,
 > = Partial<VariantProps<T, B>> & {
-	class?: Partial<Record<S, string>>;
+	class?: Partial<Record<S, ClassValue>>;
 	className?: string;
 };
 
@@ -120,7 +118,7 @@ type ResponsiveClassesConfigBase<T extends VariantConfig, B extends string> = {
 
 type ResponsiveClassesConfigSlots<
 	T extends VariantConfig,
-	S extends Record<string, string>,
+	S extends Record<string, SlotConfig>,
 	B extends string,
 > = {
 	slots: SlotsConfig<S>;
@@ -131,13 +129,23 @@ type ResponsiveClassesConfigSlots<
 
 type ResponsiveClassesConfig<T extends VariantConfig, B extends string> =
 	| ResponsiveClassesConfigBase<T, B>
-	| ResponsiveClassesConfigSlots<T, Record<string, string>, B>;
+	| ResponsiveClassesConfigSlots<T, Record<string, SlotConfig>, B>;
 
 // Helper functions for slots
 const isSlotsConfig = <T extends VariantConfig, B extends string>(
 	config: ResponsiveClassesConfig<T, B>,
-): config is ResponsiveClassesConfigSlots<T, Record<string, string>, B> => {
+): config is ResponsiveClassesConfigSlots<T, Record<string, SlotConfig>, B> => {
 	return "slots" in config;
+};
+
+const normalizeClassValue = (value: ClassValue | undefined) => {
+	if (Array.isArray(value)) {
+		return value.join(" ");
+	}
+	if (typeof value === "string") {
+		return value;
+	}
+	return undefined;
 };
 
 const prefixClasses = (classes: string, prefix: string) =>
@@ -152,34 +160,24 @@ const getVariantValue = <T extends VariantConfig>(
 	key: keyof T,
 	value: string,
 	slotName?: string,
-) => {
+): string | undefined => {
 	const variant = variants?.[key];
 	const variantValue = variant?.[value];
 
-	// Handle string values
-	if (typeof variantValue === "string") {
-		return variantValue;
+	if (typeof variantValue === "string" || Array.isArray(variantValue)) {
+		return normalizeClassValue(variantValue);
 	}
 
-	// Handle variants with string array values
-	if (Array.isArray(variantValue)) {
-		if (variantValue.every((item) => typeof item === "string")) {
-			return variantValue.join(" ");
-		}
-	}
-
-	// Handle object values (slot-specific classes)
 	if (
 		typeof variantValue === "object" &&
 		variantValue !== null &&
 		slotName &&
 		slotName in variantValue
 	) {
-		const slotSpecificValue =
-			variantValue[slotName as keyof typeof variantValue];
-		if (typeof slotSpecificValue === "string") {
-			return slotSpecificValue;
-		}
+		const slotSpecificValue = (variantValue as Record<string, ClassValue>)[
+			slotName
+		];
+		return normalizeClassValue(slotSpecificValue);
 	}
 
 	return undefined;
@@ -279,7 +277,7 @@ const createSlotFunction =
 							typeof slotClasses === "object" &&
 							slotClasses[slotName]
 						) {
-							return slotClasses[slotName];
+							return normalizeClassValue(slotClasses[slotName]);
 						}
 						// Otherwise use the general className
 						return compoundClassName;
@@ -301,7 +299,7 @@ const createSlotFunction =
 // Function overloads for rcv
 export function rcv<
 	T extends VariantConfig = Record<never, VariantValue>,
-	S extends Record<string, string> = Record<string, string>,
+	S extends Record<string, SlotConfig> = Record<string, SlotConfig>,
 	B extends string = DefaultBreakpoints,
 >(config: {
 	slots: S;
@@ -324,7 +322,7 @@ export function rcv<
 
 export function rcv<
 	T extends VariantConfig = Record<never, VariantValue>,
-	S extends Record<string, string> = Record<string, string>,
+	S extends Record<string, SlotConfig> = Record<string, SlotConfig>,
 	B extends string = DefaultBreakpoints,
 >(
 	config:
@@ -421,7 +419,7 @@ export const createRcv = <B extends string>(
 ) => {
 	function customRcv<
 		T extends VariantConfig = Record<never, VariantValue>,
-		S extends Record<string, string> = Record<string, string>,
+		S extends Record<string, SlotConfig> = Record<string, SlotConfig>,
 	>(config: {
 		slots: S;
 		variants?: T;
@@ -440,7 +438,7 @@ export const createRcv = <B extends string>(
 
 	function customRcv<
 		T extends VariantConfig,
-		S extends Record<string, string> = Record<string, string>,
+		S extends Record<string, SlotConfig> = Record<string, SlotConfig>,
 	>(
 		config:
 			| ResponsiveClassesConfig<T, B>
