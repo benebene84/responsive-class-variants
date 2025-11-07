@@ -89,9 +89,14 @@ type VariantPropValue<T, B extends string> = T extends BooleanVariant
 		? ResponsiveValue<keyof T, B>
 		: never;
 
-type VariantProps<T extends VariantConfig, B extends string> = {
+type VariantPropsBase<T extends VariantConfig, B extends string> = {
 	[K in keyof T]?: VariantPropValue<T[K], B>;
-} & {
+};
+
+type VariantProps<T extends VariantConfig, B extends string> = VariantPropsBase<
+	T,
+	B
+> & {
 	className?: string;
 };
 
@@ -429,7 +434,9 @@ export const createRcv = <B extends string>(
 		[K in keyof S]: (props?: VariantProps<T, B>) => string;
 	};
 
-	function customRcv<T extends VariantConfig>(config: {
+	function customRcv<
+		T extends VariantConfig = Record<never, VariantValue>,
+	>(config: {
 		base: string;
 		variants?: T;
 		compoundVariants?: Partial<VariantProps<T, B>>[];
@@ -437,7 +444,7 @@ export const createRcv = <B extends string>(
 	}): (props?: VariantProps<T, B>) => string;
 
 	function customRcv<
-		T extends VariantConfig,
+		T extends VariantConfig = Record<never, VariantValue>,
 		S extends Record<string, SlotConfig> = Record<string, SlotConfig>,
 	>(
 		config:

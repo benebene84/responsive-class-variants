@@ -58,6 +58,15 @@ describe("responsive-class-variants", () => {
 		expect(result).toContain("cursor-not-allowed");
 	});
 
+	it("should pass className when no variants are applied", () => {
+		const styles = rcv({
+			base: "rounded px-4 py-2",
+		});
+		const className = "custom-class";
+		const result = styles({ className });
+		expect(result).toContain("custom-class");
+	});
+
 	it("should handle variant values as arrays", () => {
 		const styles = rcv({
 			base: "rounded px-4 py-2",
@@ -193,6 +202,16 @@ describe("createRcv", () => {
 		expect(result).toContain("md:text-lg");
 		expect(result).toContain("lg:bg-blue-500 lg:text-white");
 		expect(result).toContain("2xl:bg-gray-200 2xl:text-gray-800");
+	});
+
+	it("should pass className when no variants are applied", () => {
+		const customRcv = createRcv(["xs", "sm", "md", "lg", "xl", "2xl"] as const);
+		const demoStyles = customRcv({
+			base: "px-4 py-2 rounded",
+		});
+		const className = "custom-class";
+		const result = demoStyles({ className });
+		expect(result).toContain("custom-class");
 	});
 
 	it("should maintain backward compatibility with default breakpoints", () => {
