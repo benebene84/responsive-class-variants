@@ -58,6 +58,22 @@ describe("responsive-class-variants", () => {
 		expect(result).toContain("cursor-not-allowed");
 	});
 
+	it("should handle variant values as arrays", () => {
+		const styles = rcv({
+			base: "rounded px-4 py-2",
+			variants: {
+				size: {
+					sm: ["text-sm", "bg-blue-500"],
+					lg: ["text-lg", "bg-gray-200"],
+				},
+			},
+		});
+		const result = styles({
+			size: "sm",
+		});
+		expect(result).toContain("text-sm bg-blue-500");
+	});
+
 	it("should apply compound variants when conditions match", () => {
 		const result = getButtonVariants({
 			intent: "primary",
