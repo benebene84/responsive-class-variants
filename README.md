@@ -80,8 +80,8 @@ const getCardVariants = rcv({
   }
 });
 
-// Usage - destructure the slot functions
-const { base, title, content } = getCardVariants;
+// Usage - call the factory before destructuring the slot functions
+const { base, title, content } = getCardVariants();
 
 // Apply to your JSX - no arguments needed for simple slots!
 <div className={base()}>
@@ -121,7 +121,7 @@ const getCardVariants = rcv({
   }
 });
 
-const { base, title, content } = getCardVariants;
+const { base, title, content } = getCardVariants();
 
 // Usage with variants
 <div className={base({ shadow: "md", size: "lg" })}>
@@ -174,7 +174,7 @@ const getAlertVariants = rcv({
   ]
 });
 
-const { root, title, message } = getAlertVariants;
+const { root, title, message } = getAlertVariants();
 
 // Usage
 <div className={root({ variant: "outlined", severity: "error" })}>
@@ -207,7 +207,7 @@ const getCardVariants = rcv({
   }
 });
 
-const { base, title } = getCardVariants;
+const { base, title } = getCardVariants();
 
 // Responsive usage
 <div className={base({ size: { initial: "sm", md: "lg" } })}>
