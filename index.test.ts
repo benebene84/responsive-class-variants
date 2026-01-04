@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRcv, rcv } from "./index";
+import { createRcv, mapResponsiveValue, rcv } from "./index";
 
 describe("responsive-class-variants", () => {
 	// Basic setup with common variants for testing
@@ -163,6 +163,149 @@ describe("responsive-class-variants", () => {
 
 		const result = getButtonVariants({ className: "custom-class" });
 		expect(result).toBe("rounded px-4 py-2 custom-class");
+	});
+});
+
+describe("mapResponsiveValue", () => {
+	it("should map a singular value", () => {
+		const result = mapResponsiveValue("sm", (size) => {
+			switch (size) {
+				case "sm":
+					return "text-sm";
+				case "md":
+					return "text-md";
+				case "lg":
+					return "text-lg";
+				default:
+					return "text-base";
+			}
+		});
+
+		expect(result).toBe("text-sm");
+	});
+
+	it("should map a responsive value with initial only", () => {
+		const result = mapResponsiveValue({ initial: "sm" }, (size) => {
+			switch (size) {
+				case "sm":
+					return "text-sm";
+				case "md":
+					return "text-md";
+				case "lg":
+					return "text-lg";
+				default:
+					return "text-base";
+			}
+		});
+
+		expect(result).toEqual({ initial: "text-sm" });
+	});
+
+	it("should map a responsive value with multiple breakpoints", () => {
+		const result = mapResponsiveValue(
+			{ initial: "sm", md: "md", lg: "lg" },
+			(size) => {
+				switch (size) {
+					case "sm":
+						return "text-sm";
+					case "md":
+						return "text-md";
+					case "lg":
+						return "text-lg";
+					default:
+						return "text-base";
+				}
+			},
+		);
+
+		expect(result).toEqual({
+			initial: "text-sm",
+			md: "text-md",
+			lg: "text-lg",
+		});
+	});
+
+	it("should handle boolean values", () => {
+		const result = mapResponsiveValue({ initial: true, md: false }, (value) =>
+			value ? "visible" : "hidden",
+		);
+
+		expect(result).toEqual({
+			initial: "visible",
+			md: "hidden",
+		});
+	});
+
+	it("should handle number values", () => {
+		const result = mapResponsiveValue(
+			{ initial: 1, md: 2, lg: 3 },
+			(value) => value * 10,
+		);
+
+		expect(result).toEqual({
+			initial: 10,
+			md: 20,
+			lg: 30,
+		});
+	});
+
+	it("should handle singular number value", () => {
+		const result = mapResponsiveValue<number, number>(5, (value) => value * 2);
+
+		expect(result).toBe(10);
+	});
+
+	it("should handle singular boolean value", () => {
+		const result = mapResponsiveValue<boolean, string>(true, (value) =>
+			value ? "enabled" : "disabled",
+		);
+
+		expect(result).toBe("enabled");
+	});
+
+	it("should preserve all breakpoint keys", () => {
+		const input = { initial: "a", sm: "b", md: "c", lg: "d", xl: "e" };
+		const result = mapResponsiveValue(input, (v) => v.toUpperCase());
+
+		expect(result).toEqual({
+			initial: "A",
+			sm: "B",
+			md: "C",
+			lg: "D",
+			xl: "E",
+		});
+	});
+
+	it("should work with custom breakpoints", () => {
+		const result = mapResponsiveValue<
+			string,
+			string,
+			"mobile" | "tablet" | "desktop"
+		>({ initial: "small", mobile: "medium", desktop: "large" }, (size) =>
+			size.toUpperCase(),
+		);
+
+		expect(result).toEqual({
+			initial: "SMALL",
+			mobile: "MEDIUM",
+			desktop: "LARGE",
+		});
+	});
+
+	it("should handle object transformation", () => {
+		type Size = { width: number; height: number };
+		const result = mapResponsiveValue<Size, string>(
+			{
+				initial: { width: 100, height: 50 },
+				md: { width: 200, height: 100 },
+			},
+			(size) => `${size.width}x${size.height}`,
+		);
+
+		expect(result).toEqual({
+			initial: "100x50",
+			md: "200x100",
+		});
 	});
 });
 
