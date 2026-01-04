@@ -164,6 +164,27 @@ describe("responsive-class-variants", () => {
 		const result = getButtonVariants({ className: "custom-class" });
 		expect(result).toBe("rounded px-4 py-2 custom-class");
 	});
+
+	it("should handle class prop as an alternative to className", () => {
+		const getButtonVariants = rcv({
+			base: "rounded px-4 py-2",
+		});
+
+		const result = getButtonVariants({ class: "custom-class" });
+		expect(result).toBe("rounded px-4 py-2 custom-class");
+	});
+
+	it("should merge both class and className props", () => {
+		const getButtonVariants = rcv({
+			base: "rounded px-4 py-2",
+		});
+
+		const result = getButtonVariants({
+			className: "from-className",
+			class: "from-class",
+		});
+		expect(result).toBe("rounded px-4 py-2 from-className from-class");
+	});
 });
 
 describe("mapResponsiveValue", () => {
@@ -616,5 +637,125 @@ describe("slots", () => {
 		expect(title({ className: "custom-title-class" })).toContain(
 			"custom-title-class",
 		);
+	});
+
+	it("should handle slots with class prop", () => {
+		const slotStyles = rcv({
+			slots: {
+				base: "rounded-xl p-8 bg-white",
+				title: "text-xl font-bold",
+			},
+			variants: {},
+		});
+		const { base, title } = slotStyles();
+
+		expect(base({ class: "custom-base-class" })).toContain("custom-base-class");
+		expect(title({ class: "custom-title-class" })).toContain(
+			"custom-title-class",
+		);
+	});
+
+	it("should merge both class and className props in slots", () => {
+		const slotStyles = rcv({
+			slots: {
+				base: "rounded-xl p-8 bg-white",
+			},
+			variants: {},
+		});
+		const { base } = slotStyles();
+
+		expect(
+			base({ className: "from-className", class: "from-class" }),
+		).toContain("from-className");
+		expect(
+			base({ className: "from-className", class: "from-class" }),
+		).toContain("from-class");
+	});
+
+	it("should handle compound variants with className as slot mapping", () => {
+		const slotStyles = rcv({
+			slots: {
+				root: "rounded py-3 px-5",
+				title: "font-bold",
+			},
+			variants: {
+				variant: {
+					primary: {},
+					secondary: {},
+				},
+			},
+			compoundVariants: [
+				{
+					variant: "primary",
+					className: {
+						root: "bg-blue-500",
+						title: "text-white",
+					},
+				},
+			],
+		});
+		const { root, title } = slotStyles();
+
+		expect(root({ variant: "primary" })).toContain("bg-blue-500");
+		expect(title({ variant: "primary" })).toContain("text-white");
+		expect(root({ variant: "secondary" })).not.toContain("bg-blue-500");
+	});
+
+	it("should handle compound variants with className as string", () => {
+		const slotStyles = rcv({
+			slots: {
+				root: "rounded py-3 px-5",
+				title: "font-bold",
+			},
+			variants: {
+				variant: {
+					primary: {},
+					secondary: {},
+				},
+			},
+			compoundVariants: [
+				{
+					variant: "primary",
+					className: "applied-to-all-slots",
+				},
+			],
+		});
+		const { root, title } = slotStyles();
+
+		expect(root({ variant: "primary" })).toContain("applied-to-all-slots");
+		expect(title({ variant: "primary" })).toContain("applied-to-all-slots");
+	});
+
+	it("should merge both class and className in compound variants", () => {
+		const slotStyles = rcv({
+			slots: {
+				root: "rounded",
+				title: "font-bold",
+			},
+			variants: {
+				variant: {
+					primary: {},
+				},
+			},
+			compoundVariants: [
+				{
+					variant: "primary",
+					class: {
+						root: "from-class-root",
+						title: "from-class-title",
+					},
+					className: {
+						root: "from-className-root",
+						title: "from-className-title",
+					},
+				},
+			],
+		});
+		const { root, title } = slotStyles();
+
+		expect(root({ variant: "primary" })).toContain("from-class-root");
+		expect(root({ variant: "primary" })).toContain("from-className-root");
+		expect(title({ variant: "primary" })).toContain("from-class-title");
+		expect(title({ variant: "primary" })).toContain("from-className-title");
 	});
 });

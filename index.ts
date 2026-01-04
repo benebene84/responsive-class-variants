@@ -100,6 +100,7 @@ type VariantProps<T extends VariantConfig, B extends string> = VariantPropsBase<
 	B
 > & {
 	className?: string;
+	class?: string;
 };
 
 // Slot configuration types
@@ -107,13 +108,17 @@ type SlotConfig = ClassValue;
 
 type SlotsConfig<S extends Record<string, SlotConfig>> = S;
 
+type CompoundVariantClassValue<S extends string> =
+	| string
+	| Partial<Record<S, ClassValue>>;
+
 type CompoundVariantWithSlots<
 	T extends VariantConfig,
 	S extends string,
 	B extends string,
-> = Partial<VariantProps<T, B>> & {
-	class?: Partial<Record<S, ClassValue>>;
-	className?: string;
+> = Partial<Omit<VariantProps<T, B>, "class" | "className">> & {
+	class?: CompoundVariantClassValue<S>;
+	className?: CompoundVariantClassValue<S>;
 };
 
 type ResponsiveClassesConfigBase<T extends VariantConfig, B extends string> = {
@@ -214,7 +219,7 @@ const processResponsiveValue = <T extends VariantConfig, B extends string>(
 
 // Helper function to process variant props into classes
 const processVariantProps = <T extends VariantConfig, B extends string>(
-	props: Omit<VariantProps<T, B>, "className">,
+	props: Omit<VariantProps<T, B>, "className" | "class">,
 	variants: T | undefined,
 	slotName?: string,
 ) => {
@@ -245,13 +250,31 @@ const processVariantProps = <T extends VariantConfig, B extends string>(
 // Helper function to match compound variants
 const matchesCompoundVariant = <T extends VariantConfig, B extends string>(
 	compound: Omit<CompoundVariantWithSlots<T, string, B>, "className" | "class">,
-	props: Omit<VariantProps<T, B>, "className">,
+	props: Omit<VariantProps<T, B>, "className" | "class">,
 ) => {
 	return Object.entries(compound).every(([key, value]) => {
 		const propValue = props[key as keyof typeof props];
 		// Direct comparison first, then try string conversion for boolean handling
 		return propValue === value || propValue === String(value);
 	});
+};
+
+// Helper function to extract class value from compound variant class prop
+const getCompoundVariantSlotClass = <S extends string>(
+	classValue: CompoundVariantClassValue<S> | undefined,
+	slotName: string,
+): string | undefined => {
+	if (!classValue) return undefined;
+
+	if (typeof classValue === "object" && classValue[slotName as S]) {
+		return normalizeClassValue(classValue[slotName as S]);
+	}
+
+	if (typeof classValue === "string") {
+		return classValue;
+	}
+
+	return undefined;
 };
 
 const createSlotFunction =
@@ -262,22 +285,26 @@ const createSlotFunction =
 		onComplete: ((classes: string) => string) | undefined,
 		slotName: string,
 	) =>
-	({ className, ...props }: VariantProps<T, B> = {} as VariantProps<T, B>) => {
+	(
+		{
+			className,
+			class: classFromProps,
+			...props
+		}: VariantProps<T, B> = {} as VariantProps<T, B>,
+	) => {
 		const responsiveClasses = processVariantProps(props, variants, slotName);
 
 		const compoundClasses = compoundVariants?.map(
-			({ class: slotClasses, className: compoundClassName, ...compound }) => {
+			({
+				class: classFromCompound,
+				className: classNameFromCompound,
+				...compound
+			}) => {
 				if (matchesCompoundVariant(compound, props)) {
-					// If compound variant has slot-specific classes, use those for this slot
-					if (
-						slotClasses &&
-						typeof slotClasses === "object" &&
-						slotClasses[slotName]
-					) {
-						return normalizeClassValue(slotClasses[slotName]);
-					}
-					// Otherwise use the general className
-					return compoundClassName;
+					return [
+						getCompoundVariantSlotClass(classFromCompound, slotName),
+						getCompoundVariantSlotClass(classNameFromCompound, slotName),
+					];
 				}
 				return undefined;
 			},
@@ -288,6 +315,7 @@ const createSlotFunction =
 			responsiveClasses,
 			compoundClasses,
 			className,
+			classFromProps,
 		);
 		return onComplete ? onComplete(classes) : classes;
 	};
@@ -358,7 +386,11 @@ export function rcv<
 	// If config is not a slots config, create a base function
 	const { base, variants, compoundVariants, onComplete } = config;
 	return (
-		{ className, ...props }: VariantProps<T, B> = {} as VariantProps<T, B>,
+		{
+			className,
+			class: classFromProps,
+			...props
+		}: VariantProps<T, B> = {} as VariantProps<T, B>,
 	) => {
 		const responsiveClasses = processVariantProps(props, variants);
 
@@ -379,7 +411,13 @@ export function rcv<
 			},
 		);
 
-		const classes = clsx(base, responsiveClasses, compoundClasses, className);
+		const classes = clsx(
+			base,
+			responsiveClasses,
+			compoundClasses,
+			className,
+			classFromProps,
+		);
 		return onComplete ? onComplete(classes) : classes;
 	};
 }

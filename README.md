@@ -7,6 +7,7 @@ rcv helps you create responsive class variants. It handles the logic of generati
 - Handles the logic of generating the classes and prefixes them with the breakpoint name.
 - You just need to provide the base classes, the variants and optionally compound variants.
 - **Slots support**: Create multiple class-generating functions for different parts of a component.
+- **Framework agnostic**: Supports both `className` (React) and `class` (Svelte, Vue, SolidJS) props.
 - You can use the default breakpoints (sm, md, lg, xl) or provide your own.
 - You can pass an optional onComplete callback to the createRcv function. This callback will be called with the generated classes. Helpful if you want to pass your classes to a library like twMerge.
 
@@ -63,6 +64,9 @@ const getButtonVariants = rcv({
  getButtonVariants({ intent: "primary", size: "large", disabled: true })
  // Or with responsive values:
  getButtonVariants({ intent: { initial: "primary", md: "secondary" } })
+ // You can also pass additional classes via className or class:
+ getButtonVariants({ intent: "primary", className: "my-custom-class" })
+ getButtonVariants({ intent: "primary", class: "my-custom-class" }) // For Svelte, Vue, SolidJS
 ```
 
 ### Slots (Multi-Part Components):
@@ -132,7 +136,7 @@ const { base, title, content } = getCardVariants();
 
 #### Slots with Compound Variants
 
-Compound variants can also target specific slots using the `class` property:
+Compound variants can target specific slots using either the `class` or `className` property. Both accept either a string (applied to all slots) or an object mapping slot names to classes:
 
 ```ts
 const getAlertVariants = rcv({
@@ -165,11 +169,18 @@ const getAlertVariants = rcv({
     {
       variant: "filled",
       severity: "success",
-      class: {
+      // You can use className instead of class - both work the same way
+      className: {
         root: "bg-green-100 dark:bg-green-800",
         title: "text-green-900 dark:text-green-50",
         message: "text-green-700 dark:text-green-200"
       }
+    },
+    {
+      variant: "filled",
+      severity: "warning",
+      // You can also use a string to apply the same class to all slots
+      class: "warning-styles"
     }
   ]
 });
@@ -310,6 +321,42 @@ You can pass an optional onComplete callback to the createRcv function. This cal
 
 ```ts
 const rcv = createRcv(['mobile', 'tablet', 'desktop'], (classes) => twMerge(classes));
+```
+
+## Using `class` vs `className`
+
+rcv supports both `class` and `className` props for maximum framework compatibility:
+
+- **React**: Use `className` (standard React convention)
+- **Svelte, Vue, SolidJS**: Use `class` (standard HTML attribute)
+
+Both props work identically and can even be used together (they will be merged):
+
+```ts
+// React style
+getButtonVariants({ intent: "primary", className: "extra-class" })
+
+// Svelte/Vue/SolidJS style  
+getButtonVariants({ intent: "primary", class: "extra-class" })
+
+// Both can be used together (merged)
+getButtonVariants({ intent: "primary", className: "from-react", class: "from-other" })
+// Result includes both "from-react" and "from-other"
+```
+
+In compound variants with slots, both `class` and `className` accept either:
+- A **string**: Applied to all slots when the compound variant matches
+- A **slot mapping object**: Applied to specific slots
+
+```ts
+compoundVariants: [
+  // String - applies to all slots
+  { variant: "outlined", className: "border" },
+  
+  // Object - targets specific slots (works with both class and className)
+  { variant: "filled", class: { root: "bg-blue-500", title: "text-white" } },
+  { variant: "special", className: { root: "special-root", title: "special-title" } },
+]
 ```
 
 ## Typescript helpers
