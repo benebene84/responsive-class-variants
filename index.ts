@@ -57,15 +57,17 @@ const isBreakpointsMap = <A, B extends string>(
 export const mapResponsiveValue = <V, T, B extends string = DefaultBreakpoints>(
 	value: ResponsiveValue<V, B>,
 	mapper: (value: V) => T,
-): ResponsiveValue<T, B> =>
-	isSingularValue(value)
-		? mapper(value)
-		: (Object.fromEntries(
-				Object.entries(value).map(([breakpoint, value]) => [
-					breakpoint,
-					mapper(value),
-				]),
-			) as BreakpointsMap<T, B>);
+): ResponsiveValue<T, B> => {
+	if (isSingularValue(value)) {
+		return mapper(value);
+	}
+
+	const result: Record<string, T> = {};
+	for (const key of Object.keys(value)) {
+		result[key] = mapper(value[key as keyof typeof value] as V);
+	}
+	return result as BreakpointsMap<T, B>;
+};
 
 /**
  * Start of rcv and types
@@ -154,10 +156,7 @@ const normalizeClassValue = (value: ClassValue | undefined) => {
 };
 
 const prefixClasses = (classes: string, prefix: string) =>
-	classes
-		.split(" ")
-		.map((className) => `${prefix}:${className}`)
-		.join(" ");
+	classes.replace(/(\S+)/g, `${prefix}:$1`);
 
 // Helper function to get variant value for a specific slot or base
 const getVariantValue = <T extends VariantConfig>(
@@ -166,23 +165,21 @@ const getVariantValue = <T extends VariantConfig>(
 	value: string,
 	slotName?: string,
 ): string | undefined => {
-	const variant = variants?.[key];
-	const variantValue = variant?.[value];
+	const variantValue = variants?.[key]?.[value];
 
+	// Early return if no variant value found
+	if (variantValue == null) return undefined;
+
+	// Handle string or array values directly
 	if (typeof variantValue === "string" || Array.isArray(variantValue)) {
 		return normalizeClassValue(variantValue);
 	}
 
-	if (
-		typeof variantValue === "object" &&
-		variantValue !== null &&
-		slotName &&
-		slotName in variantValue
-	) {
-		const slotSpecificValue = (variantValue as Record<string, ClassValue>)[
-			slotName
-		];
-		return normalizeClassValue(slotSpecificValue);
+	// Handle slot-specific values (object with slot keys)
+	if (slotName && slotName in variantValue) {
+		return normalizeClassValue(
+			(variantValue as Record<string, ClassValue>)[slotName],
+		);
 	}
 
 	return undefined;
@@ -195,27 +192,24 @@ const processResponsiveValue = <T extends VariantConfig, B extends string>(
 	value: Partial<BreakpointsMap<T, B>>,
 	slotName?: string,
 ) => {
-	return Object.entries(value)
-		.map(([breakpoint, breakpointValue]) => {
-			const variantValue = getVariantValue(
-				variants,
-				key,
-				breakpointValue as string,
-				slotName,
-			);
+	return Object.entries(value).map(([breakpoint, breakpointValue]) => {
+		const variantValue = getVariantValue(
+			variants,
+			key,
+			breakpointValue as string,
+			slotName,
+		);
 
-			if (!variantValue) return undefined;
+		if (!variantValue) return undefined;
 
-			// If the breakpoint is initial, return without prefix
-			if (breakpoint === "initial") {
-				return variantValue;
-			}
+		// If the breakpoint is initial, return without prefix
+		if (breakpoint === "initial") {
+			return variantValue;
+		}
 
-			// Otherwise, return with breakpoint prefix
-			return prefixClasses(variantValue, breakpoint);
-		})
-		.filter(Boolean)
-		.join(" ");
+		// Otherwise, return with breakpoint prefix
+		return prefixClasses(variantValue, breakpoint);
+	});
 };
 
 // Helper function to process variant props into classes
@@ -224,8 +218,8 @@ const processVariantProps = <T extends VariantConfig, B extends string>(
 	variants: T | undefined,
 	slotName?: string,
 ) => {
-	return Object.entries(props)
-		.map(([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
+	return Object.entries(props).map(
+		([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
 			const value =
 				typeof propValue === "boolean" ? String(propValue) : propValue;
 
@@ -244,9 +238,8 @@ const processVariantProps = <T extends VariantConfig, B extends string>(
 				value as Partial<BreakpointsMap<T, B>>,
 				slotName,
 			);
-		})
-		.filter(Boolean)
-		.join(" ");
+		},
+	);
 };
 
 // Helper function to match compound variants
@@ -254,11 +247,11 @@ const matchesCompoundVariant = <T extends VariantConfig, B extends string>(
 	compound: Omit<CompoundVariantWithSlots<T, string, B>, "className" | "class">,
 	props: Omit<VariantProps<T, B>, "className">,
 ) => {
-	return Object.entries(compound).every(
-		([key, value]) =>
-			props[key as keyof typeof props] === String(value) ||
-			props[key as keyof typeof props] === value,
-	);
+	return Object.entries(compound).every(([key, value]) => {
+		const propValue = props[key as keyof typeof props];
+		// Direct comparison first, then try string conversion for boolean handling
+		return propValue === value || propValue === String(value);
+	});
 };
 
 const createSlotFunction =
@@ -272,25 +265,23 @@ const createSlotFunction =
 	({ className, ...props }: VariantProps<T, B> = {} as VariantProps<T, B>) => {
 		const responsiveClasses = processVariantProps(props, variants, slotName);
 
-		const compoundClasses = compoundVariants
-			?.map(
-				({ class: slotClasses, className: compoundClassName, ...compound }) => {
-					if (matchesCompoundVariant(compound, props)) {
-						// If compound variant has slot-specific classes, use those for this slot
-						if (
-							slotClasses &&
-							typeof slotClasses === "object" &&
-							slotClasses[slotName]
-						) {
-							return normalizeClassValue(slotClasses[slotName]);
-						}
-						// Otherwise use the general className
-						return compoundClassName;
+		const compoundClasses = compoundVariants?.map(
+			({ class: slotClasses, className: compoundClassName, ...compound }) => {
+				if (matchesCompoundVariant(compound, props)) {
+					// If compound variant has slot-specific classes, use those for this slot
+					if (
+						slotClasses &&
+						typeof slotClasses === "object" &&
+						slotClasses[slotName]
+					) {
+						return normalizeClassValue(slotClasses[slotName]);
 					}
-					return undefined;
-				},
-			)
-			.filter(Boolean);
+					// Otherwise use the general className
+					return compoundClassName;
+				}
+				return undefined;
+			},
+		);
 
 		const classes = clsx(
 			slotConfig,
@@ -371,8 +362,8 @@ export function rcv<
 	) => {
 		const responsiveClasses = processVariantProps(props, variants);
 
-		const compoundClasses = compoundVariants
-			?.map(({ className: compoundClassName, ...compound }) => {
+		const compoundClasses = compoundVariants?.map(
+			({ className: compoundClassName, ...compound }) => {
 				if (
 					matchesCompoundVariant(
 						compound as Omit<
@@ -385,8 +376,8 @@ export function rcv<
 					return compoundClassName;
 				}
 				return undefined;
-			})
-			.filter(Boolean);
+			},
+		);
 
 		const classes = clsx(base, responsiveClasses, compoundClasses, className);
 		return onComplete ? onComplete(classes) : classes;
