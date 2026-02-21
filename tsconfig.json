@@ -37,6 +37,12 @@
 		}
 	},
 
-	"include": ["index.ts", "vitest.setup.ts"],
+	"include": [
+		"index.ts",
+		"types.ts",
+		"helpers.ts",
+		"rcv.ts",
+		"vitest.setup.ts"
+	],
 	"exclude": ["dist"]
 }

@@ -20,7 +20,7 @@
 		"tailwindcss"
 	],
 	"scripts": {
-		"build": "tsc",
+		"build": "tsc && tsc-alias -f",
 		"test": "vitest",
 		"test:ci": "vitest run",
 		"lint": "biome check .",
@@ -28,14 +28,15 @@
 	},
 	"author": "Benedikt Sperl",
 	"license": "ISC",
-	"packageManager": "pnpm@9.14.2+sha512.6e2baf77d06b9362294152c851c4f278ede37ab1eba3a55fda317a4a17b209f4dbb973fb250a77abc463a341fcb1f17f17cfa24091c4eb319cda0d9b84278387",
+	"packageManager": "pnpm@10.30.1",
 	"dependencies": {
 		"clsx": "^2.0.0"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.0.6",
-		"lefthook": "^1.11.14",
-		"typescript": "^5.8.3",
-		"vitest": "^3.2.4"
+		"@biomejs/biome": "2.4.4",
+		"lefthook": "^2.1.1",
+		"tsc-alias": "^1.8.16",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.18"
 	}
 }
