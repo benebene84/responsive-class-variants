@@ -4,7 +4,7 @@ import {
 	isSlotsConfig,
 	matchesCompoundVariant,
 	processVariantProps,
-} from "./helpers.js";
+} from "./helpers";
 import type {
 	CompoundVariantWithSlots,
 	DefaultBreakpoints,
@@ -13,7 +13,7 @@ import type {
 	VariantConfig,
 	VariantProps,
 	VariantValue,
-} from "./types.js";
+} from "./types";
 
 // Function overloads for rcv
 export function rcv<

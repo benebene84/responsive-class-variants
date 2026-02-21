@@ -11,7 +11,7 @@ import type {
 	VariantConfig,
 	VariantProps,
 	VariantPropValue,
-} from "./types.js";
+} from "./types";
 
 const isSingularValue = <A, B extends string>(
 	value: ResponsiveValue<A, B>,
