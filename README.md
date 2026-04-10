@@ -8,7 +8,7 @@ rcv helps you create responsive class variants. It handles the logic of generati
 - You just need to provide the base classes, the variants and optionally compound variants.
 - **Slots support**: Create multiple class-generating functions for different parts of a component.
 - **Framework agnostic**: Supports both `className` (React) and `class` (Svelte, Vue, SolidJS) props.
-- You can use the default breakpoints (sm, md, lg, xl) or provide your own.
+- You can use the default breakpoints (`sm`, `md`, `lg`, `xl`) or teach TypeScript your own names with an optional **`breakpoints`** tuple on the config (type-only) or with **`createRcv`**.
 - You can pass an optional onComplete callback to the createRcv function. This callback will be called with the generated classes. Helpful if you want to pass your classes to a library like twMerge.
 
 ## Installation
@@ -23,10 +23,12 @@ rcv is a function that takes a config object and returns a function that takes a
 
 The config object has the following properties:
 
-- base: The base classes that are always applied.
-- variants: An object with the keys of the variants and the values are the values of the variants.
-- compoundVariants: An array of compound variants that apply additional classes when multiple variants have specific values.
-- onComplete: An optional callback function that receives the generated classes and returns the final classes.
+- **base** (non-slots): The base classes that are always applied.
+- **slots** (slots API): An object mapping slot names to their base classes.
+- **variants**: An object with the keys of the variants and the values are the values of the variants.
+- **compoundVariants**: An array of compound variants that apply additional classes when multiple variants have specific values.
+- **breakpoints** (optional): A `const` tuple of breakpoint names used **only for TypeScript** so responsive props are typed with your names (e.g. `mobile`, `tablet`). Not read at runtime. Omit to use the defaults `sm`, `md`, `lg`, `xl`.
+- **onComplete**: An optional callback function that receives the generated classes and returns the final classes.
 
 rcv works very well with tailwindcss but it can be used with any CSS solution.
 
@@ -282,10 +284,39 @@ const SIZES = {
 
 The structure doesn't really matter, the classes just need to be in the compiled javascript to be picked up by the JIT compiler.
 
-## Custom breakpoints (via createRcv)
+## Custom breakpoints
+
+Runtime behavior is unchanged: class names are still prefixed with whatever breakpoint key you use (e.g. `mobile:`, `md:`). You only need to tell TypeScript which names are valid.
+
+### Option A: `breakpoints` on `rcv` (recommended)
+
+Pass a `const` tuple so responsive props are inferred for `initial` plus those keys only:
 
 ```ts
-const rcv = createRcv(['mobile', 'tablet', 'desktop']);
+const getButtonVariants = rcv({
+  base: "px-4 py-2 rounded",
+  breakpoints: ["mobile", "tablet", "desktop"] as const,
+  variants: {
+    intent: {
+      primary: "bg-blue-500 text-white",
+      secondary: "bg-gray-200 text-gray-800"
+    }
+  }
+});
+
+getButtonVariants({
+  intent: { initial: "primary", mobile: "secondary", desktop: "primary" }
+});
+```
+
+The `breakpoints` field is **not** read at runtime; it exists so the compiler can infer the breakpoint union.
+
+### Option B: `createRcv`
+
+Same typing effect by passing the tuple to `createRcv` once (also type-only for the first argument):
+
+```ts
+const rcv = createRcv(["mobile", "tablet", "desktop"]);
 
 const getButtonVariants = rcv({
   base: "px-4 py-2 rounded",
@@ -297,23 +328,12 @@ const getButtonVariants = rcv({
   }
 });
 
-// Usage with custom breakpoints:
-getButtonVariants({ intent: { initial: "primary", mobile: "secondary", desktop: "primary" } })
-
-// Works with slots too:
-const getCardVariants = rcv({
-  slots: {
-    base: "rounded-xl p-4 bg-white",
-    title: "font-bold text-gray-900"
-  },
-  variants: {
-    size: {
-      sm: { base: "p-2", title: "text-sm" },
-      lg: { base: "p-8", title: "text-2xl" }
-    }
-  }
+getButtonVariants({
+  intent: { initial: "primary", mobile: "secondary", desktop: "primary" }
 });
 ```
+
+Custom breakpoints work with the slots API as well—add `breakpoints: [...] as const` next to `slots` / `variants`, or use `createRcv` as above.
 
 ## onComplete callback (via createRcv)
 
@@ -363,7 +383,7 @@ compoundVariants: [
 
 rcv provides a helper type to make it easier to type your component props.
 
-If you use the default breakpoints (sm, md, lg, xl), you can use the `ResponsiveValue` type to make existing props responsive.
+If you use the default breakpoints (`sm`, `md`, `lg`, `xl`), you can use the `ResponsiveValue` type to make existing props responsive.
 
 ```ts
 type ButtonProps = {
@@ -374,16 +394,15 @@ type ButtonProps = {
 };
 ```
 
-If you use custom breakpoints you need to pass the breakpoints to the `ResponsiveValue` type.
+If you use **custom** breakpoint names, pass the same union as the second generic parameter, or derive it once from your `const` tuple:
 
 ```ts
-import { createRcv, type ResponsiveValue as RcvResponsiveValue } from "responsive-class-variants";
+import { type ResponsiveValue as RcvResponsiveValue } from "responsive-class-variants";
 
 const breakpoints = ["tablet", "desktop", "wide"] as const;
+type CustomBreakpoint = (typeof breakpoints)[number];
 
-export const customRcv = createRcv(breakpoints);
-
-type Breakpoints = (typeof breakpoints)[number];
-
-export type ResponsiveValue<T> = RcvResponsiveValue<T, Breakpoints>;
+export type ResponsiveValue<T> = RcvResponsiveValue<T, CustomBreakpoint>;
 ```
+
+When you define variants with `rcv({ breakpoints: [...] as const, ... })` or `createRcv(breakpoints)`, the returned function’s props are already inferred; you only need the snippet above for **separate** prop types (e.g. wrapping a design-system component).
