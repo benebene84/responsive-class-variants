@@ -59,10 +59,17 @@ type CompoundVariantWithSlots<
 	className?: CompoundVariantClassValue<S>;
 };
 
+/**
+ * Optional tuple of breakpoint names, used only so TypeScript can infer `B`.
+ * It is not read at runtime; omit it to use {@link DefaultBreakpoints}.
+ */
+type BreakpointsInference<B extends string> = readonly B[];
+
 type ResponsiveClassesConfigBase<T extends VariantConfig, B extends string> = {
 	base: string;
 	variants?: T;
 	compoundVariants?: Partial<VariantProps<T, B>>[];
+	breakpoints?: BreakpointsInference<B>;
 	onComplete?: (classes: string) => string;
 };
 
@@ -74,6 +81,7 @@ type ResponsiveClassesConfigSlots<
 	slots: SlotsConfig<S>;
 	variants?: T;
 	compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
+	breakpoints?: BreakpointsInference<B>;
 	onComplete?: (classes: string) => string;
 };
 

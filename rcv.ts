@@ -15,6 +15,13 @@ import type {
 	VariantValue,
 } from "./types";
 
+/**
+ * Builds responsive class strings from a config object.
+ *
+ * Pass **`breakpoints`** as a `const` tuple (e.g. `['mobile', 'tablet'] as const`) only when you want
+ * TypeScript to infer custom breakpoint names for responsive props. It is not read at runtime.
+ * Omit it to use the default `sm` / `md` / `lg` / `xl` breakpoints.
+ */
 // Function overloads for rcv
 export function rcv<
 	T extends VariantConfig = Record<never, VariantValue>,
@@ -24,6 +31,7 @@ export function rcv<
 	slots: S;
 	variants?: T;
 	compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
+	breakpoints?: readonly B[];
 	onComplete?: (classes: string) => string;
 }): () => {
 	[K in keyof S]: (props?: VariantProps<T, B>) => string;
@@ -36,6 +44,7 @@ export function rcv<
 	base: string;
 	variants?: T;
 	compoundVariants?: Partial<VariantProps<T, B>>[];
+	breakpoints?: readonly B[];
 	onComplete?: (classes: string) => string;
 }): (props?: VariantProps<T, B>) => string;
 
@@ -50,6 +59,7 @@ export function rcv<
 				slots: S;
 				variants?: T;
 				compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
+				breakpoints?: readonly B[];
 				onComplete?: (classes: string) => string;
 		  },
 ) {
@@ -118,12 +128,15 @@ export function rcv<
 }
 
 /**
- * Creates a custom rcv function with custom breakpoints and an optional onComplete callback
+ * Returns an `rcv` that uses custom breakpoint names for typing.
+ *
+ * The first argument is **type-only** (not read at runtime): it lets TypeScript infer `B`.
+ * You can get the same effect with {@link rcv} by passing `breakpoints: ['mobile', 'tablet'] as const` on the config object.
  *
  * @template B - The custom breakpoints type
- * @param breakpoints - Optional array of custom breakpoint names
- * @param onComplete - Optional callback function that receives the generated classes and returns the final classes
- * @returns A function that creates rcv with custom breakpoints
+ * @param breakpoints - Optional tuple of custom breakpoint names (for inference only)
+ * @param onComplete - Optional callback applied to the merged class string
+ * @returns An `rcv` function whose props use `B` for responsive keys
  *
  * @example
  * const customRcv = createRcv(['mobile', 'tablet', 'desktop']);
@@ -153,6 +166,7 @@ export const createRcv = <B extends string>(
 		slots: S;
 		variants?: T;
 		compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
+		breakpoints?: readonly B[];
 		onComplete?: (classes: string) => string;
 	}): () => {
 		[K in keyof S]: (props?: VariantProps<T, B>) => string;
@@ -164,6 +178,7 @@ export const createRcv = <B extends string>(
 		base: string;
 		variants?: T;
 		compoundVariants?: Partial<VariantProps<T, B>>[];
+		breakpoints?: readonly B[];
 		onComplete?: (classes: string) => string;
 	}): (props?: VariantProps<T, B>) => string;
 
@@ -177,6 +192,7 @@ export const createRcv = <B extends string>(
 					slots: S;
 					variants?: T;
 					compoundVariants?: CompoundVariantWithSlots<T, keyof S & string, B>[];
+					breakpoints?: readonly B[];
 					onComplete?: (classes: string) => string;
 			  },
 	) {

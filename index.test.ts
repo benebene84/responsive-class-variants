@@ -759,3 +759,46 @@ describe("slots", () => {
 		expect(title({ variant: "primary" })).toContain("from-className-title");
 	});
 });
+
+describe("rcv breakpoint inference", () => {
+	it("allows default breakpoint keys when breakpoints is omitted", () => {
+		const fn = rcv({
+			base: "x",
+			variants: { intent: { a: "a", b: "b" } },
+		});
+		fn({ intent: { initial: "a", sm: "b", md: "a" } });
+		expect(fn()).toBe("x");
+	});
+
+	it("infers custom breakpoints from config.breakpoints", () => {
+		const fn = rcv({
+			base: "x",
+			breakpoints: ["mobile", "tablet"] as const,
+			variants: { intent: { a: "a", b: "b" } },
+		});
+		fn({ intent: { initial: "a", mobile: "b", tablet: "a" } });
+		expect(fn()).toBe("x");
+	});
+
+	it("rejects default breakpoint keys when custom B is inferred", () => {
+		const fn = rcv({
+			base: "x",
+			breakpoints: ["mobile", "tablet"] as const,
+			variants: { intent: { a: "a", b: "b" } },
+		});
+		// @ts-expect-error `sm` is not a valid breakpoint when B is mobile|tablet
+		fn({ intent: { initial: "a", sm: "b" } });
+	});
+
+	it("infers custom breakpoints for slot rcv", () => {
+		const slot = rcv({
+			slots: { root: "root" },
+			breakpoints: ["mobile", "tablet"] as const,
+			variants: { intent: { a: "a", b: "b" } },
+		});
+		const { root } = slot();
+		root({ intent: { initial: "a", mobile: "b" } });
+		// @ts-expect-error `md` is not a valid breakpoint when B is mobile|tablet
+		root({ intent: { initial: "a", md: "b" } });
+	});
+});
