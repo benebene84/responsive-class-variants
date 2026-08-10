@@ -156,7 +156,9 @@ export const processVariantProps = <T extends VariantConfig, B extends string>(
 	return Object.entries(props).map(
 		([key, propValue]: [keyof T, VariantPropValue<T[keyof T], B>]) => {
 			const value =
-				typeof propValue === "boolean" ? String(propValue) : propValue;
+				typeof propValue === "boolean" || typeof propValue === "number"
+					? String(propValue)
+					: propValue;
 
 			// Handle undefined values
 			if (!value) return undefined;
