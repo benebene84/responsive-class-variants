@@ -58,6 +58,71 @@ describe("responsive-class-variants", () => {
 		expect(result).toContain("cursor-not-allowed");
 	});
 
+	it("should handle number variants", () => {
+		const getGridVariants = rcv({
+			base: "grid",
+			variants: {
+				columns: {
+					0: "grid-cols-none",
+					1: "grid-cols-1",
+					2: "grid-cols-2",
+				},
+			},
+		});
+
+		expect(getGridVariants({ columns: 2 })).toBe("grid grid-cols-2");
+		// `0` is falsy but still a valid variant key
+		expect(getGridVariants({ columns: 0 })).toBe("grid grid-cols-none");
+	});
+
+	it("should handle responsive number variants", () => {
+		const getGridVariants = rcv({
+			base: "grid",
+			variants: {
+				columns: {
+					1: "grid-cols-1",
+					2: "grid-cols-2",
+				},
+			},
+		});
+
+		const result = getGridVariants({ columns: { initial: 1, md: 2 } });
+		expect(result).toContain("grid-cols-1");
+		expect(result).toContain("md:grid-cols-2");
+	});
+
+	it("should handle number variants in compound variants and slots", () => {
+		const styles = rcv({
+			slots: {
+				root: "grid",
+				item: "block",
+			},
+			variants: {
+				columns: {
+					1: { root: "grid-cols-1", item: "col-span-1" },
+					2: { root: "grid-cols-2", item: "col-span-2" },
+				},
+				intent: {
+					primary: { root: "bg-blue-500" },
+				},
+			},
+			compoundVariants: [
+				{
+					columns: 2,
+					intent: "primary",
+					className: { root: "gap-4" },
+				},
+			],
+		});
+
+		const { root, item } = styles();
+		expect(root({ columns: 2, intent: "primary" })).toBe(
+			"grid grid-cols-2 bg-blue-500 gap-4",
+		);
+		expect(item({ columns: 2, intent: "primary" })).toBe("block col-span-2");
+		expect(root({ columns: 1, intent: "primary" })).not.toContain("gap-4");
+	});
+
 	it("should pass className when no variants are applied", () => {
 		const styles = rcv({
 			base: "rounded px-4 py-2",
